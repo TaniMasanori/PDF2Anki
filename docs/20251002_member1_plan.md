@@ -2,7 +2,7 @@
 title: Member 1 実装計画・設計（PDF変換パイプラインと統合）
 date: 2025-10-02
 owner: Member 1 (Alice)
-scope: Marker API セットアップ、変換出力処理、カード生成工程へのデータ連携、Anki 取込フォーマット整備、Windows 対応
+scope: Marker API セットアップ、変換出力処理、カード生成工程へのデータ連携、Anki 取込フォーマット整備、Windows/WSL 対応
 ---
 
 ## 1. 目的と成果物
@@ -12,10 +12,10 @@ scope: Marker API セットアップ、変換出力処理、カード生成工�
 - 変換結果の正規化・チャンク分割・メタデータ付与の標準データモデルを確立
 - カード生成工程（LLM）に安全に渡せる I/O 契約と API/スクリプト I/F を定義
 - Anki 取込（TSV）に適した整形・書き出し仕様を決定
-- Windows 環境での安定運用
+- Windows/WSL 環境での安定運用
 
 ## 2. タスクリスト（日本語/English）
-- 実行環境準備（Windows） / Environment setup (Windows)
+- 実行環境準備（Windows/WSL） / Environment setup (Windows/WSL)
 - Marker API の導入と起動方法確立 / Install and run Marker API
 - 変換クライアント（HTTP）実装 / Implement conversion HTTP client
 - 出力正規化・クリーニング / Normalize and clean conversion output
@@ -37,8 +37,15 @@ flowchart LR
   F --> G[Anki Manual Import]
 ```
 
-## 4. 実行環境設計（Windows ローカル Python 実行）
-### 4.1 Windows（ローカル Python 実行）
+## 4. 実行環境設計（Windows/WSL ローカル Python 実行）
+### 4.1 WSL（推奨: Ubuntu）
+1) Microsoft Store から Ubuntu WSL を導入し初期化
+2) `sudo apt update && sudo apt install -y python3 python3-venv python3-pip`
+3) `python3 -m venv ~/.venvs/pdf2anki && source ~/.venvs/pdf2anki/bin/activate`
+4) Marker API 依存のインストール（後日 `requirements.txt` で固定）
+5) サーバ起動手順を整備（`uvicorn` / FastAPI 等、公式手順に追随）
+
+### 4.2 Windows（ネイティブ実行も可能）
 1) Python 3.10+ をインストール（PATH 登録）
 2) 仮想環境作成: `python -m venv .venv` / 有効化
 3) 依存関係（後日 `requirements.txt` 導入を想定）
@@ -174,7 +181,7 @@ What does $E=mc^2$ represent?	Mass–energy equivalence.
 5) Anki の GUI でインポート確認（Front/Back マッピング, 数式表示）
 
 ## 15. マイルストーン（Member 1）
-- Day 1–2: 環境準備（Windows）・Marker API の疎通
+- Day 1–2: 環境準備（Windows/WSL）・Marker API の疎通
 - Day 3–4: 変換クライアント + 出力保存・メタ付与
 - Day 5–6: クリーニング/チャンク分割・データ契約確定
 - Day 7: TSV Writer と Anki インポート検証・統合テスト
@@ -186,6 +193,7 @@ What does $E=mc^2$ represent?	Mass–energy equivalence.
 
 ## 17. 参考（運用 TIPS）
 - Windows パス区切りは `pathlib.Path` を使用
+- WSL↔Windows のローカルホスト疎通とファイル共有に留意（`/mnt/c/...`）
 - 大型 PDF ではまずページ範囲を限定して品質確認→問題なければ全体処理
 
 

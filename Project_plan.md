@@ -71,7 +71,7 @@ github.com
 , ensuring that complex content is preserved in Markdown form.
 Output Flashcards: Basic Anki cards with a front (question) and back (answer). The flashcards will target key facts or concepts from the PDF. For example, a slide about a definition could become a “What is X?” card. We will let the user specify the number of cards to generate and possibly the focus (e.g. definitions, concepts, or questions covering each section).
 No Pre-trained Model: We are not training a custom model. Instead, we will use an API (likely a GPT-4 based service) to generate flashcard text from the Markdown. Prompt engineering will be crucial to guide the AI to produce useful Q&A pairs.
-Platform: Development and demo will be on Windows (the team’s working OS). Marker API will be run as a local Python service on Windows (no Docker). Anki Desktop (Windows version) will be used to import and display the cards.
+Platform: Development and demo will be on Windows (the team’s working OS) using WSL (Windows Subsystem for Linux). Marker API will be run as a local Python service inside WSL (no Docker). Anki Desktop (Windows version) will be used to import and display the cards.
 Methodology and Approach
 Step 1: PDF to Markdown Conversion
 Tool: We will use Marker API (GitHub: adithya-s-k/marker-api) to convert PDFs to Markdown. Marker API provides a REST endpoint to convert PDFs “quickly and accurately” into Markdown format
@@ -129,7 +129,7 @@ Final Presentation: Dec 2, 2025.
 Below is the timeline with milestones and deliverables:
 Week of Sept 30 – Oct 6, 2025: Project Setup & Initial Prototype
 Setup Repository: Create a GitHub repository for the project. Initialize it with a README outlining the project goals. Both team members will have access and follow a consistent commit practice.
-Environment Configuration: Set up development environment on Windows machines. Install Anki Desktop. Install Marker API as a local Python service on Windows (no Docker). Ensure we can run the Marker API server locally and it’s accessible (test with a sample PDF).
+Environment Configuration: Set up development environment on Windows machines. Install Anki Desktop (Windows). Install/Run Marker API inside WSL as a local Python service (no Docker). Ensure the API is accessible from Windows (e.g., `http://localhost:<port>`), and test with a sample PDF.
 Initial Conversion Test: Run Marker API on a small PDF to verify output. Examine the Markdown for structure and content fidelity (e.g., are headings correctly identified, are images referenced, etc.).
 API Access: Ensure we have access to a GPT-based API (e.g., OpenAI API key or similar). Write a simple test script that calls the API with a trivial prompt to verify connectivity.
 Prototype Prompt: Draft a basic prompt for flashcard generation. For example, take a short text and see if the API can output one Q&A pair. This is to gauge the format and any issues in parsing the response.
@@ -209,7 +209,7 @@ Risks and Challenges
 PDF Conversion Accuracy: While Marker API is powerful, there’s a risk that some PDFs might not convert cleanly (e.g., unusual formatting, OCR issues if PDFs are scanned images). We mitigate this by testing early and, if a PDF is problematic, possibly pre-processing it (e.g., ensure it’s a text-based PDF, or limit to a range of pages). We’ll also keep Marker API updated to latest version in case of bug fixes.
 Large Content & AI Limitations: A full lecture note or paper can be long. GPT-4 has input token limits, and summarizing or selecting important points is non-trivial. The AI might also sometimes generate incorrect answers or nonsensical questions if the prompt or context isn’t clear enough. Our strategy is to iterate on prompt design, and possibly break the content into smaller chunks. If needed, for the demo, we might restrict to processing a portion of the document (e.g., a chapter or a section) to ensure quality over quantity. We will also manually review outputs as needed to avoid showing any blatantly wrong flashcard in presentations (noting that in a real scenario, user review is wise).
 Time Constraint for Add-on: Implementing a full Anki add-on in a few weeks (while also perfecting the core pipeline) is ambitious for two students. We recognize this and have labeled it a stretch goal. The risk is we spend too much time on it and neglect core functionality. To manage this, we will only start serious add-on development after the interim if the core pipeline is solid. If time is short, we will limit ourselves to demonstrating the concept (maybe a partial automation or just describing how it would work) rather than a fully polished add-on.
-Windows Environment Issues: Some tools (especially those involving machine learning or PDF parsing libraries) can be tricky on Windows (library compatibility, path issues, etc.). We will run Marker API natively on Windows (no Docker) and ensure required Python dependencies are installed. For Anki add-on, we will need to ensure any external calls (to Marker API or to an internet API) are allowed – this might need handling of Windows firewall or loopback for AnkiConnect. We will test on our target machine thoroughly.
+Windows/WSL Environment Issues: Some tools (especially PDF parsing libraries) can be tricky on native Windows. We will run Marker API inside WSL (Linux userspace) and ensure required Python dependencies are installed there. Confirm localhost access across WSL↔Windows and handle Windows firewall or loopback as needed. We will test on the target machine thoroughly.
 Collaboration & Version Control: There’s a risk in any team project of merge conflicts or duplication of work. To mitigate, we’ll communicate frequently, use branches, and perform code reviews. The use of Cursor for pair programming also helps keep both members on the same page and can reduce integration issues (since we’ll often be coding together for core parts).
 Demo Risks: Live demos can fail (network outage, API rate-limit, etc.). We will have backup plans: for instance, have a set of pre-generated cards or a cached API response to use if the live call doesn’t work. We’ll also inform our instructors of any requirement like internet for the demo in advance, or run a local instance of a smaller LLM if absolutely needed (as a backup, though quality may differ).
 Conclusion
@@ -371,7 +371,7 @@ genanki (optional) – As an alternative method, we could use the genanki Python
 Development Tools:
 Cursor Editor: for coding with AI assistance.
 VSCode/PyCharm as needed (particularly if debugging or for editing Anki add-on, which might need an IDE).
-Docker Desktop on Windows (for running Marker API and possibly Redis if needed by it; though for simple server mode, Redis/Celery might not be needed).
+WSL (Ubuntu) on Windows (for running Marker API as a local Python service; simple server mode is sufficient).
 Git for version control (with GitHub).
 Documentation & Communication:
 We will maintain documentation in the repo (README, maybe a Wiki or docs folder) for how to run the project.
