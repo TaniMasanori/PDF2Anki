@@ -5,7 +5,7 @@ date: 2025-10-02
 
 本日の変更点:
 
-- `docs/20251002_member1_plan.md` を追加し、Member 1 の詳細実装計画・設計（Windows/Docker、Marker API 利用、出力整形、Anki TSV 仕様、インターフェース/型設計、検証計画、DoD）を定義
+- `docs/20251002_member1_plan.md` を追加し、Member 1 の詳細実装計画・設計（Windows 前提、Marker API 利用、出力整形、Anki TSV 仕様、インターフェース/型設計、検証計画、DoD）を定義
 - `.gitignore` を追加し、大容量ファイルやローカル生成物のコミットを防止
 
 補足:

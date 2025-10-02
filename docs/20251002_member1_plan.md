@@ -2,7 +2,7 @@
 title: Member 1 実装計画・設計（PDF変換パイプラインと統合）
 date: 2025-10-02
 owner: Member 1 (Alice)
-scope: Marker API セットアップ、変換出力処理、カード生成工程へのデータ連携、Anki 取込フォーマット整備、Windows/Docker 対応
+scope: Marker API セットアップ、変換出力処理、カード生成工程へのデータ連携、Anki 取込フォーマット整備、Windows 対応
 ---
 
 ## 1. 目的と成果物
@@ -12,10 +12,10 @@ scope: Marker API セットアップ、変換出力処理、カード生成工�
 - 変換結果の正規化・チャンク分割・メタデータ付与の標準データモデルを確立
 - カード生成工程（LLM）に安全に渡せる I/O 契約と API/スクリプト I/F を定義
 - Anki 取込（TSV）に適した整形・書き出し仕様を決定
-- Windows 環境および Docker 実行の両対応
+- Windows 環境での安定運用
 
 ## 2. タスクリスト（日本語/English）
-- 実行環境準備（Windows/Docker） / Environment setup (Windows/Docker)
+- 実行環境準備（Windows） / Environment setup (Windows)
 - Marker API の導入と起動方法確立 / Install and run Marker API
 - 変換クライアント（HTTP）実装 / Implement conversion HTTP client
 - 出力正規化・クリーニング / Normalize and clean conversion output
@@ -37,21 +37,14 @@ flowchart LR
   F --> G[Anki Manual Import]
 ```
 
-## 4. 実行環境設計（Windows/Docker 併用）
+## 4. 実行環境設計（Windows ローカル Python 実行）
 ### 4.1 Windows（ローカル Python 実行）
 1) Python 3.10+ をインストール（PATH 登録）
 2) 仮想環境作成: `python -m venv .venv` / 有効化
 3) 依存関係（後日 `requirements.txt` 導入を想定）
 4) CLI 単体検証（参考）: `marker_single <pdf> <outdir>`（Marker CLI がある場合）
 
-### 4.2 Docker（推奨：依存の分離）
-1) Docker Desktop（WSL2 バックエンド）を有効化
-2) Marker API の公式イメージまたはリポジトリ手順でビルド
-   - 例: `docker run -p 8000:8000 -v "<host_dir>:/data" <marker_api_image>`
-3) Windows パスのマウントは `C:\Users\...` → `/data` などへ割当
-4) API の疎通確認: `http://localhost:8000/docs`（FastAPI/Swagger 想定）
-
-注: リポジトリの README/Docs に従い、実際のイメージ名・エンドポイントは都度確認する。
+（Docker は本プロジェクトでは使用しない方針）
 
 ## 5. Marker API 利用設計
 ### 5.1 エンドポイント（想定）
@@ -181,7 +174,7 @@ What does $E=mc^2$ represent?	Mass–energy equivalence.
 5) Anki の GUI でインポート確認（Front/Back マッピング, 数式表示）
 
 ## 15. マイルストーン（Member 1）
-- Day 1–2: 環境準備（Docker/Windows）・Marker API の疎通
+- Day 1–2: 環境準備（Windows）・Marker API の疎通
 - Day 3–4: 変換クライアント + 出力保存・メタ付与
 - Day 5–6: クリーニング/チャンク分割・データ契約確定
 - Day 7: TSV Writer と Anki インポート検証・統合テスト
@@ -193,7 +186,6 @@ What does $E=mc^2$ represent?	Mass–energy equivalence.
 
 ## 17. 参考（運用 TIPS）
 - Windows パス区切りは `pathlib.Path` を使用
-- Docker のパス共有は `-v C:\\Users\\<user>\\PDF2Anki:/data` の形式
 - 大型 PDF ではまずページ範囲を限定して品質確認→問題なければ全体処理
 
 
