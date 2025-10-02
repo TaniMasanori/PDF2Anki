@@ -40,10 +40,37 @@ flowchart LR
 ## 4. 実行環境設計（Windows/WSL ローカル Python 実行）
 ### 4.1 WSL（推奨: Ubuntu）
 1) Microsoft Store から Ubuntu WSL を導入し初期化
-2) `sudo apt update && sudo apt install -y python3 python3-venv python3-pip`
-3) `python3 -m venv ~/.venvs/pdf2anki && source ~/.venvs/pdf2anki/bin/activate`
-4) Marker API 依存のインストール（後日 `requirements.txt` で固定）
-5) サーバ起動手順を整備（`uvicorn` / FastAPI 等、公式手順に追随）
+2) 必要パッケージの導入（Python/ビルド/ユーティリティ）
+   ```bash
+   sudo apt update
+   sudo apt install -y python3 python3-venv python3-pip git build-essential python3-dev poppler-utils
+   ```
+3) 仮想環境の作成と更新
+   ```bash
+   python3 -m venv ~/.venvs/pdf2anki
+   source ~/.venvs/pdf2anki/bin/activate
+   python -m pip install --upgrade pip
+   ```
+4) Marker API の取得と依存インストール（リポジトリ README に従う）
+   ```bash
+   git clone https://github.com/adithya-s-k/marker-api.git
+   cd marker-api
+   pip install -r requirements.txt || true
+   pip install -e . || true
+   ```
+5) サーバ起動（例: FastAPI/Uvicorn）
+   ```bash
+   export PORT=8000
+   uvicorn marker_api.app:app --host 0.0.0.0 --port ${PORT}
+   ```
+6) 疎通確認
+   ```bash
+   curl http://localhost:8000/docs || true
+   ```
+7) Windows からのアクセス/共有
+   - ブラウザで `http://localhost:8000/docs` が開けること
+   - Windows の `C:\\Users\\<user>\\PDF2Anki` は WSL では `/mnt/c/Users/<user>/PDF2Anki`
+8) 詳細手順は `docs/20251002_marker_api_setup_wsl.md` を参照
 
 ### 4.2 Windows（ネイティブ実行も可能）
 1) Python 3.10+ をインストール（PATH 登録）
