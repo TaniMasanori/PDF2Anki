@@ -1,32 +1,32 @@
 ---
-title: Member 1 実装計画・設計（PDF変換パイプラインと統合）
+title: Member 1 Implementation Plan & Design (PDF Conversion Pipeline and Integration)
 date: 2025-10-02
 owner: Member 1 (Alice)
-scope: Marker API セットアップ、変換出力処理、カード生成工程へのデータ連携、Anki 取込フォーマット整備、Windows/WSL 対応
+scope: Marker API Setup, Conversion Output Processing, Data Integration to Card Generation, Anki Import Format Preparation, Windows/WSL Support
 ---
 
-## 1. 目的と成果物
-この文書は Member 1 の担当範囲（PDF 変換パイプラインとシステム統合）の詳細な実装計画・設計を示す。最終的に以下を完了させる。
+## 1. Purpose and Deliverables
+This document outlines the detailed implementation plan and design for Member 1's area of responsibility (PDF conversion pipeline and system integration). The final goal is to complete the following:
 
-- Anki 用カード生成の前段となる PDF→Markdown 変換を安定運用できること（Marker API）
-- 変換結果の正規化・チャンク分割・メタデータ付与の標準データモデルを確立
-- カード生成工程（LLM）に安全に渡せる I/O 契約と API/スクリプト I/F を定義
-- Anki 取込（TSV）に適した整形・書き出し仕様を決定
-- Windows/WSL 環境での安定運用
+- Establish stable operation of PDF→Markdown conversion (Marker API) as the preceding stage for Anki card generation
+- Establish standard data models for normalization, chunking, and metadata annotation of conversion results
+- Define I/O contracts and API/script interfaces that can be safely passed to the card generation process (LLM)
+- Determine formatting and output specifications suitable for Anki import (TSV)
+- Ensure stable operation in Windows/WSL environment
 
-## 2. タスクリスト（日本語/English）
-- 実行環境準備（Windows/WSL） / Environment setup (Windows/WSL)
-- Marker API の導入と起動方法確立 / Install and run Marker API
-- 変換クライアント（HTTP）実装 / Implement conversion HTTP client
-- 出力正規化・クリーニング / Normalize and clean conversion output
-- チャンク分割とメタ情報設計 / Chunking and metadata design
-- データ契約（型・JSON スキーマ）定義 / Define data contracts (types/JSON schema)
-- カード生成工程へのインターフェース定義 / Define interface to card generation step
-- Anki 取込フォーマット（TSV）仕様・整形実装 / Anki TSV spec and writer
-- ロギング/再現性（チェックポイント保存） / Logging and reproducibility
-- 統合テストとサンプル PDF での検証 / Integration tests with sample PDFs
+## 2. Task List (English/Japanese)
+- Environment setup (Windows/WSL) / 実行環境準備（Windows/WSL）
+- Install and run Marker API / Marker API の導入と起動方法確立
+- Implement conversion HTTP client / 変換クライアント（HTTP）実装
+- Normalize and clean conversion output / 出力正規化・クリーニング
+- Chunking and metadata design / チャンク分割とメタ情報設計
+- Define data contracts (types/JSON schema) / データ契約（型・JSON スキーマ）定義
+- Define interface to card generation step / カード生成工程へのインターフェース定義
+- Anki TSV spec and writer / Anki 取込フォーマット（TSV）仕様・整形実装
+- Logging and reproducibility / ロギング/再現性（チェックポイント保存）
+- Integration tests with sample PDFs / 統合テストとサンプル PDF での検証
 
-## 3. 全体アーキテクチャ
+## 3. Overall Architecture
 ```mermaid
 flowchart LR
   A[PDF Input] --> B[Marker API (PDF->Markdown)]
@@ -37,64 +37,64 @@ flowchart LR
   F --> G[Anki Manual Import]
 ```
 
-## 4. 実行環境設計（Windows/WSL ローカル Python 実行）
-### 4.1 WSL（推奨: Ubuntu）
-1) Microsoft Store から Ubuntu WSL を導入し初期化
-2) 必要パッケージの導入（Python/ビルド/ユーティリティ）
+## 4. Runtime Environment Design (Windows/WSL Local Python Execution)
+### 4.1 WSL (Recommended: Ubuntu)
+1) Install and initialize Ubuntu WSL from Microsoft Store
+2) Install required packages (Python/Build/Utilities)
    ```bash
    sudo apt update
    sudo apt install -y python3 python3-venv python3-pip git build-essential python3-dev poppler-utils
    ```
-3) 仮想環境の作成と更新
+3) Create and update virtual environment
    ```bash
    python3 -m venv ~/.venvs/pdf2anki
    source ~/.venvs/pdf2anki/bin/activate
    python -m pip install --upgrade pip
    ```
-4) Marker API の取得と依存インストール（リポジトリ README に従う）
+4) Clone Marker API and install dependencies (follow repository README)
    ```bash
    git clone https://github.com/adithya-s-k/marker-api.git
    cd marker-api
    pip install -r requirements.txt || true
    pip install -e . || true
    ```
-5) サーバ起動（例: FastAPI/Uvicorn）
+5) Start server (e.g., FastAPI/Uvicorn)
    ```bash
    export PORT=8000
    uvicorn marker_api.app:app --host 0.0.0.0 --port ${PORT}
    ```
-6) 疎通確認
+6) Verify connectivity
    ```bash
    curl http://localhost:8000/docs || true
    ```
-7) Windows からのアクセス/共有
-   - ブラウザで `http://localhost:8000/docs` が開けること
-   - Windows の `C:\\Users\\<user>\\PDF2Anki` は WSL では `/mnt/c/Users/<user>/PDF2Anki`
-8) 詳細手順は `docs/20251002_marker_api_setup_wsl.md` を参照
+7) Access/share from Windows
+   - Browser should open `http://localhost:8000/docs`
+   - Windows `C:\Users\<user>\PDF2Anki` is `/mnt/c/Users/<user>/PDF2Anki` in WSL
+8) Refer to `docs/20251002_marker_api_setup_wsl.md` for detailed procedures
 
-### 4.2 Windows（ネイティブ実行も可能）
-1) Python 3.10+ をインストール（PATH 登録）
-   - https://www.python.org から Windows installer を取得し、"Add python.exe to PATH" を有効化
-   - PowerShell で確認: `python --version` or `py -V`
-2) （必要に応じて）ビルド/ネイティブ依存の準備
-   - 一部パッケージで C/C++ コンパイラやツールが必要になる可能性あり
-   - 例: Microsoft C++ Build Tools の導入、Poppler/Ghostscript など（利用機能に応じて）
-3) 仮想環境作成と有効化
+### 4.2 Windows (Native execution also possible)
+1) Install Python 3.10+ (register to PATH)
+   - Get Windows installer from https://www.python.org and enable "Add python.exe to PATH"
+   - Verify in PowerShell: `python --version` or `py -V`
+2) (If needed) Prepare build/native dependencies
+   - Some packages may require C/C++ compiler or tools
+   - e.g., Install Microsoft C++ Build Tools, Poppler/Ghostscript, etc. (depending on features used)
+3) Create and activate virtual environment
    - PowerShell: 
      ```powershell
      py -3.10 -m venv .venv
      .\.venv\Scripts\Activate.ps1
      python -m pip install --upgrade pip
      ```
-   - 実行ポリシーでエラーの場合: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
-4) Marker API の取得と依存インストール（公式 README に従う）
+   - If execution policy error occurs: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+4) Clone Marker API and install dependencies (follow official README)
    ```powershell
    git clone https://github.com/adithya-s-k/marker-api.git
    cd marker-api
    pip install -r requirements.txt
    pip install -e .
    ```
-5) サーバ起動（例: FastAPI/Uvicorn）
+5) Start server (e.g., FastAPI/Uvicorn)
    - PowerShell:
      ```powershell
      $env:PORT=8000
@@ -105,44 +105,44 @@ flowchart LR
      set PORT=8000
      uvicorn marker_api.app:app --host 0.0.0.0 --port %PORT%
      ```
-6) 疎通確認（Windows 側）
-   - ブラウザで `http://localhost:8000/docs`
+6) Verify connectivity (Windows side)
+   - Browser: `http://localhost:8000/docs`
    - PowerShell: `curl http://localhost:8000/docs` or `Invoke-WebRequest http://localhost:8000/docs`
-7) 参考
-   - ネイティブ Windows 実行は可能だが、依存ビルドの相性で失敗しやすい場合がある。基本は 4.1 の WSL 実行を推奨。
+7) Note
+   - Native Windows execution is possible, but may fail due to dependency build compatibility. Basically recommend WSL execution in 4.1.
 
-（Docker は本プロジェクトでは使用しない方針）
+(Docker is not used in this project per policy)
 
-## 5. Marker API 利用設計
-### 5.1 エンドポイント（想定）
-- POST `/convert`（multipart/form-data, フィールド名 `file`）→ Markdown テキスト or 出力アーカイブ
-- GET `/healthz` or `/` → ヘルスチェック
-- Swagger: `/docs`（仕様確認）
+## 5. Marker API Usage Design
+### 5.1 Endpoints (Assumed)
+- POST `/convert` (multipart/form-data, field name `file`) → Markdown text or output archive
+- GET `/healthz` or `/` → Health check
+- Swagger: `/docs` (specification confirmation)
 
-補足（運用上の前提）
-- 実際のパラメータ/レスポンスは `/docs`（OpenAPI）で確定させる。本書では既定運用（Markdown を直接返す）を前提に記載。
+Note (operational assumptions)
+- Actual parameters/responses will be confirmed via `/docs` (OpenAPI). This document assumes default operation (directly returns Markdown).
 
-POST `/convert` リクエスト仕様（案）
-- ヘッダ: `Accept: text/markdown`（Markdown テキストを直接受領する既定運用）
-- ボディ: `multipart/form-data`
-  - `file`: PDF ファイル（`application/pdf`）
-  - 任意パラメータ（API 実装に依存）:
-    - `output`: `markdown` | `zip` | `json`（既定は `markdown` 想定）
-    - `pages`: 例 `1-10`（ページ範囲指定がある場合）
-    - `ocr`: `true|false`（スキャン PDF の事前 OCR 指示がある場合）
+POST `/convert` Request Specification (Draft)
+- Header: `Accept: text/markdown` (default operation to directly receive Markdown text)
+- Body: `multipart/form-data`
+  - `file`: PDF file (`application/pdf`)
+  - Optional parameters (depends on API implementation):
+    - `output`: `markdown` | `zip` | `json` (default assumes `markdown`)
+    - `pages`: e.g., `1-10` (if page range specification is available)
+    - `ocr`: `true|false` (if pre-OCR instruction for scanned PDFs is available)
 
-レスポンス（案）
+Response (Draft)
 - 200 OK
-  - `text/markdown; charset=utf-8`（既定）
-  - もしくは `application/zip` / `application/json`（`output` に応じて）
-- エラー
-  - 400 Bad Request（不正ファイル/欠落）
-  - 413 Payload Too Large（サイズ超過）
-  - 415 Unsupported Media Type（コンテンツタイプ不正）
-  - 429 Too Many Requests（リトライ: 指数バックオフ）
-  - 5xx Server Error（ログ保存→中断）
+  - `text/markdown; charset=utf-8` (default)
+  - Or `application/zip` / `application/json` (depending on `output`)
+- Errors
+  - 400 Bad Request (invalid file/missing)
+  - 413 Payload Too Large (size exceeded)
+  - 415 Unsupported Media Type (invalid content type)
+  - 429 Too Many Requests (retry: exponential backoff)
+  - 5xx Server Error (save log → abort)
 
-curl 実行例（Markdown を直接保存）
+curl execution example (save Markdown directly)
 ```bash
 curl -fS -X POST "http://localhost:8000/convert" \
   -H "Accept: text/markdown" \
@@ -151,7 +151,7 @@ curl -fS -X POST "http://localhost:8000/convert" \
   -o marker.md
 ```
 
-Python requests 実行例（`src/marker_client.py` と整合）
+Python requests execution example (consistent with `src/marker_client.py`)
 ```python
 import requests
 
@@ -163,36 +163,36 @@ resp.raise_for_status()
 markdown_text = resp.text
 ```
 
-ヘルスチェック
-- `GET /healthz` または `GET /` が 200 を返すことを起動判定の基準とする。
+Health Check
+- Use `GET /healthz` or `GET /` returning 200 as the startup determination criterion.
 
 
-実際のエンドポイント名・レスポンス形は `/docs` で確認し、クライアント側で型を固定する。
+Actual endpoint names and response formats should be confirmed via `/docs`, and types should be fixed on the client side.
 
-### 5.2 タイムアウト・再試行方針
-- タイムアウト初期値: 120s（大きめ PDF に配慮）
-- 429/5xx は指数バックオフで最大 3 回再試行
-- 例外時は入力 PDF のハッシュ名でエビデンス（ログ・レスポンス）を保存
+### 5.2 Timeout and Retry Policy
+- Initial timeout value: 120s (consideration for large PDFs)
+- Retry up to 3 times with exponential backoff for 429/5xx
+- On exception, save evidence (log/response) with hash name of input PDF
 
-## 6. データフローとデータ契約
-### 6.1 ディレクトリ構成（提案）
+## 6. Data Flow and Data Contracts
+### 6.1 Directory Structure (Proposal)
 ```
 PDF2Anki/
   docs/
-  src/               # 実装（後日）
+  src/               # Implementation (to be done later)
   outputs/
     conversions/<pdf_hash>/
       source.pdf
-      marker.md            # 変換 Markdown（UTF-8）
-      meta.json            # バージョン/所用秒数/ページ数 等
-      cleaned.md           # クリーニング後
+      marker.md            # Converted Markdown (UTF-8)
+      meta.json            # Version/elapsed seconds/page count, etc.
+      cleaned.md           # After cleaning
       chunks/
         chunk_0001.md
         ...
-      cards.tsv            # Anki 取込ファイル（生成後）
+      cards.tsv            # Anki import file (after generation)
 ```
 
-### 6.2 型（概念設計）
+### 6.2 Types (Conceptual Design)
 ```
 ConversionMeta: {
   source_path: str,
@@ -210,7 +210,7 @@ ConversionResult: {
 }
 
 Chunk: {
-  id: str,                  # chunk_0001 など
+  id: str,                  # e.g., chunk_0001
   text: str,
   start_page?: int,
   end_page?: int,
@@ -227,81 +227,81 @@ Card: {
 }
 ```
 
-## 7. クリーニングとチャンク分割
-### 7.1 クリーニング
-- 余分な改行・連続空白の整形
-- ヘッダ/フッタの反復除去（ページ番号等）
-- 数式は `$...$` / `$$...$$` を保持（Anki MathJax 前提）
-- 画像参照（`![]()`）はカード生成で未使用なら一旦残置または除去ポリシー化
+## 7. Cleaning and Chunking
+### 7.1 Cleaning
+- Format excess line breaks and consecutive whitespace
+- Remove repetitive headers/footers (page numbers, etc.)
+- Preserve mathematical expressions `$...$` / `$$...$$` (Anki MathJax assumption)
+- Image references (`![]()`) are either retained or removed based on policy if unused in card generation
 
-### 7.2 チャンク分割（優先順）
-1) セクション見出し（`#`, `##` 等）単位で分割
-2) トークン数上限（例: ~2k tokens）で分割
-3) 章・節の構造メタを `Chunk.section_title` に格納
+### 7.2 Chunking (Priority Order)
+1) Split by section headings (`#`, `##`, etc.)
+2) Split by token count limit (e.g., ~2k tokens)
+3) Store chapter/section structure metadata in `Chunk.section_title`
 
-## 8. カード生成工程へのインターフェース
-LLM 側は Member 2 担当だが、受け渡し契約を定義：
+## 8. Interface to Card Generation Process
+The LLM side is handled by Member 2, but the handoff contract is defined:
 
-- 入力: `chunks/*.md` を 1 チャンクずつ渡す。併せて `prompt_parameters.json`（例: 生成枚数, スタイル）
-- 出力: `cards.jsonl`（1 行 1 カード, `Card` 型）または `cards.tsv`
-- エラー時: `errors.log` にチャンク ID とメッセージ
+- Input: Pass `chunks/*.md` one chunk at a time. Also provide `prompt_parameters.json` (e.g., number of cards to generate, style)
+- Output: `cards.jsonl` (1 card per line, `Card` type) or `cards.tsv`
+- On error: `errors.log` with chunk ID and message
 
-将来拡張で AnkiConnect 直送や `.apkg` 生成（genanki）へ切替可能な抽象化を維持する。
+Maintain abstraction for future expansion to AnkiConnect direct send or `.apkg` generation (genanki).
 
-## 9. Anki 取込フォーマット仕様（TSV）
-- 区切り: タブ（`\t`）
-- エンコーディング: UTF-8（BOM なし推奨）
-- 1 行 = 1 カード、列: `Front\tBack`
-- 改行は `<br>` へ正規化（フィールド内の LF を直接残さない）
-- 数式は `$...$` / `$$...$$` で囲む（MathJax）
-- ダブルクォートの必須なし（TSV）
+## 9. Anki Import Format Specification (TSV)
+- Delimiter: Tab (`\t`)
+- Encoding: UTF-8 (BOM-less recommended)
+- 1 line = 1 card, columns: `Front\tBack`
+- Normalize line breaks to `<br>` (don't leave LF directly in fields)
+- Mathematical expressions enclosed with `$...$` / `$$...$$` (MathJax)
+- Double quotes not mandatory (TSV)
 
-例:
+Example:
 ```
 What is Newton's first law of motion?	Every object remains at rest or in uniform motion unless acted upon by an external force.
 What does $E=mc^2$ represent?	Mass–energy equivalence.
 ```
 
-## 10. ロギングと再現性
-- 変換リクエスト/レスポンスの要約を `meta.json` に保存
-- 入力 PDF の SHA-256 をキーに成果物を階層格納
-- 例外時は `outputs/conversions/<hash>/error/*.log` を残置
+## 10. Logging and Reproducibility
+- Save summary of conversion request/response in `meta.json`
+- Store artifacts hierarchically keyed by input PDF's SHA-256
+- On exception, leave `outputs/conversions/<hash>/error/*.log`
 
-## 11. エラーハンドリング方針
-- 入力検証（非 PDF/破損/0 バイト）
-- API 失敗（ネットワーク, 5xx）: 再試行 + 失敗時は明示的に中断
-- 変換出力が空/極端に短い: しきい値で検知して警告
+## 11. Error Handling Policy
+- Input validation (non-PDF/corrupted/0 bytes)
+- API failure (network, 5xx): Retry + explicitly abort on failure
+- Conversion output is empty/extremely short: Detect with threshold and warn
 
-## 12. 性能・スケーラビリティ
-- 並列度は CPU コア/IO 帯域に合わせて制御
-- `requests.Session` でコネクション再利用
-- 大型 PDF はページ範囲オプション（API/CLI が対応している場合）
+## 12. Performance and Scalability
+- Control parallelism according to CPU cores/IO bandwidth
+- Reuse connections with `requests.Session`
+- For large PDFs, use page range option (if API/CLI supports it)
 
-## 13. セキュリティ・秘匿情報
-- API キーやベース URL は `.env` から読み取り（リポジトリ非追跡）
-- 実ファイル（PDF）は `.gitignore` 対象
+## 13. Security and Confidential Information
+- Read API keys and base URL from `.env` (not tracked in repository)
+- Actual files (PDFs) are subject to `.gitignore`
 
-## 14. 検証計画（最小実行）
-1) サンプル PDF（講義スライド, 論文 5–10p）で変換→`marker.md` を得る
-2) クリーニング→`cleaned.md` 作成
-3) チャンク分割→`chunks/`
-4) ダミーの Q/A（手書き or 小さな LLM 出力）から `cards.tsv` を生成
-5) Anki の GUI でインポート確認（Front/Back マッピング, 数式表示）
+## 14. Verification Plan (Minimum Execution)
+1) Convert sample PDF (lecture slides, 5–10 page paper) → get `marker.md`
+2) Clean → create `cleaned.md`
+3) Chunk → `chunks/`
+4) Generate `cards.tsv` from dummy Q/A (handwritten or small LLM output)
+5) Verify import in Anki GUI (Front/Back mapping, mathematical expression display)
 
-## 15. マイルストーン（Member 1）
-- Day 1–2: 環境準備（Windows/WSL）・Marker API の疎通
-- Day 3–4: 変換クライアント + 出力保存・メタ付与
-- Day 5–6: クリーニング/チャンク分割・データ契約確定
-- Day 7: TSV Writer と Anki インポート検証・統合テスト
+## 15. Milestones (Member 1)
+- Day 1–2: Environment preparation (Windows/WSL) and Marker API connectivity
+- Day 3–4: Conversion client + output save and metadata annotation
+- Day 5–6: Cleaning/chunking and data contract finalization
+- Day 7: TSV Writer and Anki import verification, integration testing
 
-## 16. 完了の定義（DoD）
-- 任意の PDF を投入し、`marker.md → cleaned.md → chunks → cards.tsv` まで自動生成
-- `cards.tsv` を Anki に手動インポートし、2 種のカード（通常/数式）が正しく表示
-- 失敗時ログと再現用アーティファクトが `outputs/conversions/<hash>/` に残る
+## 16. Definition of Done (DoD)
+- Input any PDF and automatically generate from `marker.md → cleaned.md → chunks → cards.tsv`
+- Manually import `cards.tsv` into Anki and verify that 2 types of cards (regular/mathematical) display correctly
+- Failure logs and reproducible artifacts remain in `outputs/conversions/<hash>/`
 
-## 17. 参考（運用 TIPS）
-- Windows パス区切りは `pathlib.Path` を使用
-- WSL↔Windows のローカルホスト疎通とファイル共有に留意（`/mnt/c/...`）
-- 大型 PDF ではまずページ範囲を限定して品質確認→問題なければ全体処理
+## 17. Reference (Operational TIPS)
+- Use `pathlib.Path` for Windows path separators
+- Pay attention to WSL↔Windows localhost connectivity and file sharing (`/mnt/c/...`)
+- For large PDFs, first limit page range to verify quality → process entire document if no issues
 
 
