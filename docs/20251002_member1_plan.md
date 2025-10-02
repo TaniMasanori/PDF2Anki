@@ -119,6 +119,54 @@ flowchart LR
 - GET `/healthz` or `/` → ヘルスチェック
 - Swagger: `/docs`（仕様確認）
 
+補足（運用上の前提）
+- 実際のパラメータ/レスポンスは `/docs`（OpenAPI）で確定させる。本書では既定運用（Markdown を直接返す）を前提に記載。
+
+POST `/convert` リクエスト仕様（案）
+- ヘッダ: `Accept: text/markdown`（Markdown テキストを直接受領する既定運用）
+- ボディ: `multipart/form-data`
+  - `file`: PDF ファイル（`application/pdf`）
+  - 任意パラメータ（API 実装に依存）:
+    - `output`: `markdown` | `zip` | `json`（既定は `markdown` 想定）
+    - `pages`: 例 `1-10`（ページ範囲指定がある場合）
+    - `ocr`: `true|false`（スキャン PDF の事前 OCR 指示がある場合）
+
+レスポンス（案）
+- 200 OK
+  - `text/markdown; charset=utf-8`（既定）
+  - もしくは `application/zip` / `application/json`（`output` に応じて）
+- エラー
+  - 400 Bad Request（不正ファイル/欠落）
+  - 413 Payload Too Large（サイズ超過）
+  - 415 Unsupported Media Type（コンテンツタイプ不正）
+  - 429 Too Many Requests（リトライ: 指数バックオフ）
+  - 5xx Server Error（ログ保存→中断）
+
+curl 実行例（Markdown を直接保存）
+```bash
+curl -fS -X POST "http://localhost:8000/convert" \
+  -H "Accept: text/markdown" \
+  -F "file=@/mnt/c/Users/<user>/PDF2Anki/sample.pdf;type=application/pdf" \
+  --max-time 120 \
+  -o marker.md
+```
+
+Python requests 実行例（`src/marker_client.py` と整合）
+```python
+import requests
+
+url = "http://localhost:8000/convert"
+with open("/mnt/c/Users/<user>/PDF2Anki/sample.pdf", "rb") as f:
+    files = {"file": ("sample.pdf", f, "application/pdf")}
+    resp = requests.post(url, files=files, headers={"Accept": "text/markdown"}, timeout=120)
+resp.raise_for_status()
+markdown_text = resp.text
+```
+
+ヘルスチェック
+- `GET /healthz` または `GET /` が 200 を返すことを起動判定の基準とする。
+
+
 実際のエンドポイント名・レスポンス形は `/docs` で確認し、クライアント側で型を固定する。
 
 ### 5.2 タイムアウト・再試行方針
