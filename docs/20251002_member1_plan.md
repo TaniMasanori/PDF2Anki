@@ -74,9 +74,42 @@ flowchart LR
 
 ### 4.2 Windows（ネイティブ実行も可能）
 1) Python 3.10+ をインストール（PATH 登録）
-2) 仮想環境作成: `python -m venv .venv` / 有効化
-3) 依存関係（後日 `requirements.txt` 導入を想定）
-4) CLI 単体検証（参考）: `marker_single <pdf> <outdir>`（Marker CLI がある場合）
+   - https://www.python.org から Windows installer を取得し、"Add python.exe to PATH" を有効化
+   - PowerShell で確認: `python --version` or `py -V`
+2) （必要に応じて）ビルド/ネイティブ依存の準備
+   - 一部パッケージで C/C++ コンパイラやツールが必要になる可能性あり
+   - 例: Microsoft C++ Build Tools の導入、Poppler/Ghostscript など（利用機能に応じて）
+3) 仮想環境作成と有効化
+   - PowerShell: 
+     ```powershell
+     py -3.10 -m venv .venv
+     .\.venv\Scripts\Activate.ps1
+     python -m pip install --upgrade pip
+     ```
+   - 実行ポリシーでエラーの場合: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+4) Marker API の取得と依存インストール（公式 README に従う）
+   ```powershell
+   git clone https://github.com/adithya-s-k/marker-api.git
+   cd marker-api
+   pip install -r requirements.txt
+   pip install -e .
+   ```
+5) サーバ起動（例: FastAPI/Uvicorn）
+   - PowerShell:
+     ```powershell
+     $env:PORT=8000
+     uvicorn marker_api.app:app --host 0.0.0.0 --port $env:PORT
+     ```
+   - cmd.exe:
+     ```cmd
+     set PORT=8000
+     uvicorn marker_api.app:app --host 0.0.0.0 --port %PORT%
+     ```
+6) 疎通確認（Windows 側）
+   - ブラウザで `http://localhost:8000/docs`
+   - PowerShell: `curl http://localhost:8000/docs` or `Invoke-WebRequest http://localhost:8000/docs`
+7) 参考
+   - ネイティブ Windows 実行は可能だが、依存ビルドの相性で失敗しやすい場合がある。基本は 4.1 の WSL 実行を推奨。
 
 （Docker は本プロジェクトでは使用しない方針）
 
