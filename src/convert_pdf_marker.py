@@ -2,8 +2,6 @@
 Single CLI to convert a PDF to Markdown using marker-pdf, and write outputs that
 align with the conceptual types in section 6.2:
 
-ConversionMeta, ConversionResult, and Chunk (chunked markdown files + jsonl).
-
 Outputs layout (under --outdir):
   outputs/
     conversions/<pdf_sha256>/
@@ -11,10 +9,6 @@ Outputs layout (under --outdir):
       cleaned.md            # cleaned markdown
       meta.json             # ConversionMeta
       conversion_result.json# ConversionResult
-      chunks/
-        chunk_0001.md
-        ...
-      chunks.jsonl          # one JSON object per line for Chunk
 
 Usage:
   python src/convert_pdf_marker.py --input /path/to/input.pdf --outdir outputs
@@ -92,68 +86,6 @@ def clean_markdown(md: str) -> str:
     return text.strip() + "\n"
 
 
-def split_by_headings(md: str) -> List[Tuple[str, str]]:
-    """
-    Split markdown by top-level headings (#..######). Returns list of (title, body).
-    If no headings, return single chunk.
-    """
-    lines = md.splitlines()
-    chunks: List[Tuple[str, List[str]]] = []
-    current_title = ""
-    current_body: List[str] = []
-
-    heading_re = re.compile(r"^(#{1,6})\s+(.*)")
-    for line in lines:
-        m = heading_re.match(line)
-        if m:
-            # flush previous
-            if current_title or current_body:
-                chunks.append((current_title, current_body))
-                current_body = []
-            current_title = m.group(2).strip()
-        else:
-            current_body.append(line)
-    # flush last
-    if current_title or current_body:
-        chunks.append((current_title, current_body))
-
-    if not chunks:
-        return [("", md)]
-    return [(title, "\n".join(body).strip() + "\n") for title, body in chunks]
-
-
-def count_tokens_approx(text: str) -> int:
-    # Simple approximation: count word-like tokens
-    return len(re.findall(r"\w+", text))
-
-
-def write_chunks(
-    base_dir: Path,
-    pdf_sha256: str,
-    cleaned_md: str,
-) -> None:
-    chunks_dir = base_dir / "chunks"
-    chunks_dir.mkdir(parents=True, exist_ok=True)
-
-    pieces = split_by_headings(cleaned_md)
-    jsonl_path = base_dir / "chunks.jsonl"
-    with jsonl_path.open("w", encoding="utf-8") as jf:
-        for idx, (title, body) in enumerate(pieces, start=1):
-            chunk_id = f"chunk_{idx:04d}"
-            chunk_path = chunks_dir / f"{chunk_id}.md"
-            chunk_path.write_text(body, encoding="utf-8")
-
-            chunk_obj = {
-                "id": chunk_id,
-                "text": body,
-                "start_page": None,
-                "end_page": None,
-                "section_title": title or None,
-                "token_count": count_tokens_approx(body),
-                "source_ref": {"pdf_sha256": pdf_sha256, "chunk_id": chunk_id},
-            }
-            jf.write(json.dumps(chunk_obj, ensure_ascii=False) + "\n")
-
 
 def convert_with_marker(pdf_path: Path) -> Tuple[str, Optional[str]]:
     """Return (markdown_text, images_dir?)."""
@@ -229,9 +161,6 @@ def main() -> None:
     meta_path = conv_dir / "meta.json"
     meta_path.write_text(json.dumps(meta_obj.__dict__, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # Write chunks and chunk jsonl
-    write_chunks(conv_dir, pdf_sha256, cleaned)
-
     # ConversionResult
     result_obj = ConversionResult(
         markdown_path=str(marker_md_path),
@@ -245,8 +174,6 @@ def main() -> None:
         "markdown_path": str(marker_md_path),
         "cleaned_markdown_path": str(cleaned_md_path),
         "meta_path": str(meta_path),
-        "chunks_dir": str(conv_dir / "chunks"),
-        "chunks_index": str(conv_dir / "chunks.jsonl"),
         "conversion_result": str(result_path),
     }, ensure_ascii=False))
 
