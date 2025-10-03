@@ -6,7 +6,6 @@ Outputs layout (under --outdir):
   outputs/
     conversions/<pdf_sha256>/
       marker.md             # raw markdown from marker-pdf
-      cleaned.md            # cleaned markdown
       meta.json             # ConversionMeta
       conversion_result.json# ConversionResult
 
@@ -144,10 +143,7 @@ def main() -> None:
     marker_md_path = conv_dir / "marker.md"
     marker_md_path.write_text(md_text, encoding="utf-8")
 
-    # Clean and write cleaned markdown
-    cleaned = clean_markdown(md_text)
-    cleaned_md_path = conv_dir / "cleaned.md"
-    cleaned_md_path.write_text(cleaned, encoding="utf-8")
+    # cleaned.md generation removed per requirement
 
     # Meta (ConversionMeta)
     meta_obj = ConversionMeta(
@@ -172,7 +168,6 @@ def main() -> None:
 
     print(json.dumps({
         "markdown_path": str(marker_md_path),
-        "cleaned_markdown_path": str(cleaned_md_path),
         "meta_path": str(meta_path),
         "conversion_result": str(result_path),
     }, ensure_ascii=False))
