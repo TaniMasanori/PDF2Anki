@@ -25,10 +25,15 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from importlib import metadata
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 # External deps
 from pypdf import PdfReader
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None  # type: ignore
 
 try:
     # marker-pdf API (commonly imported as "marker")
@@ -86,20 +91,26 @@ def clean_markdown(md: str) -> str:
 
 
 
-def convert_with_marker(pdf_path: Path) -> Tuple[str, Optional[str]]:
-    """Return (markdown_text, images_dir?)."""
+def convert_with_marker(pdf_path: Path) -> Tuple[str, Dict]:
+    """
+    Convert PDF to Markdown using marker-pdf.
+    
+    Returns:
+        Tuple of (markdown_text, images_dict) where images_dict maps
+        filename -> PIL.Image.Image
+    """
     converter = PdfConverter(artifact_dict=create_model_dict())
     rendered = converter(str(pdf_path))
 
     # Try common access paths to obtain markdown
     if hasattr(rendered, "markdown"):
         md_text = rendered.markdown  # type: ignore[attr-defined]
-        images_dir = getattr(rendered, "images_dir", None)
-        return md_text, images_dir
+        images_dict = getattr(rendered, "images", {})
+        return md_text, images_dict
 
     if 'text_from_rendered' in globals() and text_from_rendered:  # type: ignore
         text, _, images = text_from_rendered(rendered)  # type: ignore
-        return text, images
+        return text, images if isinstance(images, dict) else {}
 
     raise RuntimeError("Unsupported marker-pdf output structure; please update code for your version.")
 
@@ -136,12 +147,30 @@ def main() -> None:
             engine_version = "unknown"
 
     t0 = time.perf_counter()
-    md_text, images_dir = convert_with_marker(input_pdf)
+    md_text, images_dict = convert_with_marker(input_pdf)
     elapsed = time.perf_counter() - t0
 
     # Write raw markdown
     marker_md_path = conv_dir / "marker.md"
     marker_md_path.write_text(md_text, encoding="utf-8")
+
+    # Save images if any were extracted
+    images_saved = 0
+    if images_dict:
+        for img_name, img_pil in images_dict.items():
+            img_path = conv_dir / img_name
+            try:
+                # Save as JPEG or PNG depending on original name
+                if img_name.lower().endswith(('.jpg', '.jpeg')):
+                    img_pil.save(img_path, "JPEG")
+                elif img_name.lower().endswith('.png'):
+                    img_pil.save(img_path, "PNG")
+                else:
+                    # Default to JPEG for unknown extensions
+                    img_pil.save(img_path, "JPEG")
+                images_saved += 1
+            except Exception as e:
+                print(f"WARNING: Failed to save image {img_name}: {e}", file=sys.stderr)
 
     # cleaned.md generation removed per requirement
 
@@ -161,7 +190,7 @@ def main() -> None:
     result_obj = ConversionResult(
         markdown_path=str(marker_md_path),
         meta_path=str(meta_path),
-        images_dir=images_dir,
+        images_dir=str(conv_dir) if images_saved > 0 else None,
     )
     result_path = conv_dir / "conversion_result.json"
     result_path.write_text(json.dumps(result_obj.__dict__, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -170,6 +199,7 @@ def main() -> None:
         "markdown_path": str(marker_md_path),
         "meta_path": str(meta_path),
         "conversion_result": str(result_path),
+        "images_saved": images_saved,
     }, ensure_ascii=False))
 
 
