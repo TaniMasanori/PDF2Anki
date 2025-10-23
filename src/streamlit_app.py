@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 # Import our local modules
 from marker_client import convert_pdf_to_markdown
-from types import Card
+from pdf2anki_types import Card
 
 # Load environment variables
 load_dotenv()
