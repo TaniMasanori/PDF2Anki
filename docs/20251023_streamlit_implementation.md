@@ -53,7 +53,7 @@ Added to `requirements.txt`:
 
 Successfully integrated with:
 - `src/marker_client.py`: For PDF to Markdown conversion
-- `src/types.py`: Using the `Card` class and its `to_tsv_row()` method
+- `src/pdf2anki_types.py`: Using the `Card` class and its `to_tsv_row()` method (renamed from types.py to avoid conflict with Python's built-in types module)
 - Marker API server: Communicates via HTTP requests
 
 ## Technical Implementation Details
@@ -125,3 +125,10 @@ Successfully delivered a fully functional web interface that meets all requireme
 - ✅ Download capability for both MD and TSV files
 
 The implementation provides a user-friendly way to convert educational PDFs into Anki flashcards, significantly streamlining the study material preparation process.
+
+## Post-Implementation Fix
+
+After initial implementation, encountered an import error where Python was trying to import from the built-in `types` module instead of our local module. Fixed by:
+- Renaming `src/types.py` to `src/pdf2anki_types.py`
+- Updating import statement in `streamlit_app.py`
+- This is a common Python issue when naming modules the same as built-in modules

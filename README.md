@@ -73,7 +73,7 @@ PDF2Anki/
 ├── src/
 │   ├── streamlit_app.py    # Web interface
 │   ├── marker_client.py    # PDF to Markdown conversion
-│   └── types.py            # Data structures
+│   └── pdf2anki_types.py   # Data structures
 ├── marker-api/             # Marker PDF conversion service
 ├── docs/                   # Documentation
 ├── outputs/                # Conversion outputs
