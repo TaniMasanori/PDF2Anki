@@ -132,3 +132,30 @@ After initial implementation, encountered an import error where Python was tryin
 - Renaming `src/types.py` to `src/pdf2anki_types.py`
 - Updating import statement in `streamlit_app.py`
 - This is a common Python issue when naming modules the same as built-in modules
+
+
+## 2025-10-28 Additions
+
+### Llama Prompt Command Generation
+
+After converting a PDF to Markdown, the UI now provides a ready-to-run Bash script that posts the markdown content to an OpenAI-compatible LLM endpoint (e.g., llama.cpp server, vLLM) to generate cards. The script uses environment variables:
+
+- `LLM_API_BASE` (default: `http://localhost:8080/v1`)
+- `LLM_MODEL` (default: `llama-3.1-8b-instruct`)
+- `LLM_API_KEY` (default: `no-key-required`)
+
+Copy or download the script from the UI under “Generate LLM Prompt Command”. It reads the generated `.md` file and requests the LLM to output a numbered list of cards.
+
+### Basic and Cloze Note Types
+
+The UI supports selecting the Anki note type:
+- Basic: Front/Back fields → TSV columns: `Question` and `Answer`
+- Cloze: Cloze deletion with `{{c1::...}}` syntax → TSV columns: `Text` and optional `Extra`
+
+When importing into Anki:
+- Basic: Map Field 1 → Front, Field 2 → Back
+- Cloze: Choose note type “Cloze”, map Field 1 → Text, Field 2 → Extra
+
+Implementation touches:
+- `src/pdf2anki_types.py`: `Card` now has `note_type` and `extra`, and `to_tsv_row()` adapts layout for Basic/Cloze.
+- `src/streamlit_app.py`: Sidebar options for note type, LLM API configuration, and prompt command generation section.
