@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 # Import our local modules
 from marker_client import convert_pdf_to_markdown
 from pdf2anki_types import Card
+from anki_core import build_llm_prompt_script, build_prompt, parse_cards_from_output
 
 # Load environment variables
 load_dotenv()
@@ -41,70 +42,7 @@ if 'tsv_content' not in st.session_state:
     st.session_state.tsv_content = None
 
 
-def build_llm_prompt_script(md_path: str, num_cards: int, note_type: str, content_focus: str) -> str:
-    """
-    Build a Bash script that calls an OpenAI-compatible LLM endpoint (e.g., Llama)
-    to generate Anki cards directly from the markdown file content.
-    """
-    note_type = (note_type or "basic").lower()
-    content_focus = content_focus or "mixed"
-
-    if note_type == "cloze":
-        output_block = (
-            "Generate exactly {num_cards} cloze deletions. Output ONLY a numbered list with this exact format:\n"
-            "1. Cloze: [Text containing {{c1::...}} or {{cN::...}}]\n   Extra: [optional extra]\n\n"
-            "2. Cloze: [Text]\n   Extra: [optional extra]"
-        )
-        tsv_hint = "Cloze TSV: cloze_text\textra"
-    else:
-        output_block = (
-            "Generate exactly {num_cards} flashcards. Output ONLY a numbered list with this exact format:\n"
-            "1. Question: [question text]\n   Answer: [answer text]\n\n"
-            "2. Question: [question text]\n   Answer: [answer text]"
-        )
-        tsv_hint = "Basic TSV: question\tanswer"
-
-    prompt_header = (
-        "You are an assistant that creates Anki flashcards.\n\n"
-        f"Focus on {content_focus if content_focus != 'mixed' else 'key concepts, definitions, and important details'}.\n\n"
-        "IMPORTANT:\n"
-        f"- {output_block}\n"
-        "- Do not include any other text, explanations, headings, or formatting.\n"
-        "- Ensure mathematical expressions are wrapped in $...$ for inline math or $$...$$ for display math.\n"
-        "- Keep each item concise but informative.\n"
-    )
-
-    script = f"""#!/usr/bin/env bash
-set -euo pipefail
-
-# OpenAI-compatible endpoint (e.g., llama.cpp server, vLLM, LM Studio)
-LLM_API_BASE="${{LLM_API_BASE:-http://localhost:8080/v1}}"
-LLM_MODEL="${{LLM_MODEL:-llama-3.1-8b-instruct}}"
-LLM_API_KEY="${{LLM_API_KEY:-no-key-required}}"
-
-CONTENT_FILE="{md_path}"
-CONTENT=$(cat "$CONTENT_FILE")
-
-# Build user prompt
-read -r -d '' PROMPT <<'EOF'
-{prompt_header}
-EOF
-
-USER_INPUT="$PROMPT\n\nContent:\n$CONTENT"
-
-# Build JSON payload using jq to escape safely
-DATA=$(jq -n --arg model "$LLM_MODEL" --arg sys "You are a helpful assistant that creates educational flashcards." --arg prompt "$USER_INPUT" '{model:$model, messages:[{role:"system", content:$sys},{role:"user", content:$prompt}], temperature:0.2, max_tokens:2000}')
-
-echo "Requesting LLM at $LLM_API_BASE with model $LLM_MODEL..." 1>&2
-curl -sS -X POST "$LLM_API_BASE/chat/completions" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer '$LLM_API_KEY'" \
-  -d "$DATA" | jq -r '.choices[0].message.content'
-
-# Hint: The output is a numbered list; you can post-process to TSV if desired.
-# {tsv_hint}
 """
-    return script
 
 
 def generate_anki_cards(
@@ -142,32 +80,12 @@ def generate_anki_cards(
         model_name = "gpt-4-turbo-preview"
     
     # Prepare the prompt
-    if (note_type or "basic").lower() == "cloze":
-        output_instructions = (
-            "Generate exactly {num_cards} cloze deletions. Output ONLY a numbered list with this exact format:\n"
-            "1. Cloze: [Text containing {{c1::...}} or {{cN::...}}]\n   Extra: [optional extra]\n\n"
-            "2. Cloze: [Text]\n   Extra: [optional extra]"
-        )
-    else:
-        output_instructions = (
-            "Generate exactly {num_cards} flashcards. Output ONLY a numbered list with this exact format:\n"
-            "1. Question: [question text]\n   Answer: [answer text]\n\n"
-            "2. Question: [question text]\n   Answer: [answer text]"
-        )
-
-    prompt_template = f"""You are an assistant that creates Anki flashcards.
-
-Focus on {card_type if card_type != 'mixed' else 'key concepts, definitions, and important details'}.
-
-IMPORTANT:
-- {output_instructions.format(num_cards=num_cards)}
-- Do not include any other text, explanations, headings, or formatting.
-- Ensure mathematical expressions are wrapped in $...$ for inline math or $$...$$ for display math.
-- Keep each item concise but informative.
-
-Content:
-{markdown_content[:4000]}
-"""
+    prompt_template = build_prompt(
+        note_type=note_type,
+        num_cards=num_cards,
+        content_focus=card_type,
+        markdown_content=markdown_content,
+    )
 
     try:
         # Call OpenAI API
@@ -187,34 +105,7 @@ Content:
         
         # Split by numbered items
         import re
-        if (note_type or "basic").lower() == "cloze":
-            pattern = r'\d+\.\s*Cloze:\s*(.*?)\n\s*Extra:\s*(.*?)(?=\n\d+\.|$)'
-        else:
-            pattern = r'\d+\.\s*Question:\s*(.*?)\n\s*Answer:\s*(.*?)(?=\n\d+\.|$)'
-        matches = re.findall(pattern, content, re.DOTALL)
-        
-        for i, (front, back_or_extra) in enumerate(matches):
-            # Clean up the text
-            front = front.strip()
-            back_or_extra = back_or_extra.strip()
-            
-            if front:
-                if (note_type or "basic").lower() == "cloze":
-                    card = Card(
-                        question=front,
-                        answer="",
-                        note_type="cloze",
-                        extra=back_or_extra,
-                        tags=["PDF2Anki", "auto-generated", "cloze"]
-                    )
-                else:
-                    card = Card(
-                        question=front,
-                        answer=back_or_extra,
-                        note_type="basic",
-                        tags=["PDF2Anki", "auto-generated"]
-                    )
-                cards.append(card)
+        cards = parse_cards_from_output(content, note_type)
         
         return cards
         
