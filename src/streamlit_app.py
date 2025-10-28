@@ -42,8 +42,6 @@ if 'tsv_content' not in st.session_state:
     st.session_state.tsv_content = None
 
 
-"""
-
 
 def generate_anki_cards(
     markdown_content: str,
