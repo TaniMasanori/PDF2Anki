@@ -41,10 +41,22 @@ echo "MARKER_API_BASE=http://localhost:8000" >> .env
 ### 3. Start Marker API Server
 
 ```bash
-cd marker-api
-# Follow marker-api setup instructions
-python server.py  # or use Docker
+cd /home/masan/PDF2Anki/marker-api
+# (optional) create venv
+python3 -m venv .venv && source .venv/bin/activate
+python -m pip install -U pip
+pip install -e .
+
+# run simple server on port 8000 (aligns with MARKER_API_BASE default)
+python server.py --host 0.0.0.0 --port 8000
 ```
+
+Health check and docs:
+
+- Health: `http://localhost:8000/health`
+- Docs: `http://localhost:8000/docs`
+
+Note: Marker API itself requires Python 3.10+.
 
 ### 4. Launch Web Interface
 
@@ -85,6 +97,7 @@ PDF2Anki/
 
 - [Streamlit Interface Guide](docs/streamlit_interface_guide.md)
 - [Environment Setup](docs/env_setup.md)
+- [Marker API Setup (JP)](docs/20251104_marker_api_setup.md)
 - [Project Plan](Project_plan.md)
 
 ## Development
