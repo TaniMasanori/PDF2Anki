@@ -219,12 +219,6 @@ Chunk: {
   source_ref: { pdf_sha256: str, chunk_id: str }
 }
 
-Card: {
-  question: str,
-  answer: str,
-  tags?: [str],
-  source_ref?: { pdf_sha256: str, chunk_id?: str }
-}
 ```
 
 ## 7. Cleaning and Chunking
