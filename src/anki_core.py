@@ -113,7 +113,7 @@ EOF
 
 USER_INPUT="$PROMPT\n\nContent:\n$CONTENT"
 
-DATA=$(jq -n --arg model "$LLM_MODEL" --arg sys "You are a helpful assistant that creates educational flashcards." --arg prompt "$USER_INPUT" '{{model:$model, messages:[{role:"system", content:$sys},{role:"user", content:$prompt}], temperature:0.2, max_tokens:2000}}')
+DATA=$(jq -n --arg model "$LLM_MODEL" --arg sys "You are a helpful assistant that creates educational flashcards." --arg prompt "$USER_INPUT" '{{model:$model, messages:[{{"role":"system", "content":$sys}},{{"role":"user", "content":$prompt}}], temperature:0.2, max_tokens:2000}}')
 
 echo "Requesting LLM at $LLM_API_BASE with model $LLM_MODEL..." 1>&2
 curl -sS -X POST "$LLM_API_BASE/chat/completions" \
@@ -122,5 +122,10 @@ curl -sS -X POST "$LLM_API_BASE/chat/completions" \
   -d "$DATA" | jq -r '.choices[0].message.content'
 """
     return script
+
+
+
+
+
 
 
