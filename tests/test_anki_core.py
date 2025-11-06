@@ -52,3 +52,5 @@ def test_parse_cloze_cards_from_output():
     assert "{{c1::Paris}}" in cards[0].question
     assert cards[0].note_type == "cloze"
 
+
+

@@ -37,3 +37,8 @@ def test_convert_pdf_to_markdown_success(monkeypatch, tmp_path):
     assert Path(result.meta_path).exists()
     assert "Hello from Marker" in Path(result.markdown_path).read_text(encoding="utf-8")
 
+
+
+
+
+
