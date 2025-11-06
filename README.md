@@ -181,4 +181,10 @@ This project uses:
 
 ## License
 
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
+
 See [LICENSE](LICENSE) file for details.
+
+### Why GPL v3?
+
+This project uses GPL-3.0-licensed dependencies (marker-api and marker-pdf), which require the entire project to be licensed under GPL v3 to maintain license compatibility.
