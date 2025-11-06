@@ -23,3 +23,8 @@ def test_cloze_tsv_row_uses_extra():
     assert fields[1] == "Europe"
     assert fields[2] == "geo"
 
+
+
+
+
+
