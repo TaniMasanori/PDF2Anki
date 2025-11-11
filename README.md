@@ -39,14 +39,17 @@ echo "MARKER_API_BASE=http://localhost:8000" >> .env
 ```
 
 **LLM Configuration**: The app requires either:
-- **OpenAI**: Set `OPENAI_API_KEY` in `.env` (uses GPT-4 by default)
+- **OpenAI**: Set `OPENAI_API_KEY` in `.env` (defaults to `gpt-4-turbo`, can be overridden with `OPENAI_MODEL`)
 - **Llama/OpenAI-compatible**: Set `LLM_API_BASE` (and optionally `LLM_MODEL` and `LLM_API_KEY`) in `.env`
 
 Example `.env` for OpenAI:
 ```
 OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4-turbo
 MARKER_API_BASE=http://localhost:8000
 ```
+
+Note: `gpt-4-turbo-preview` is deprecated. Use `gpt-4-turbo`, `gpt-4o`, or other available models.
 
 Example `.env` for Llama:
 ```
