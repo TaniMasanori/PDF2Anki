@@ -31,8 +31,13 @@ from dotenv import load_dotenv
 
 # Import our local modules
 from marker_client import convert_pdf_to_markdown
-from pdf2anki_types import Card
+from pdf2anki_types import Card, SourceReference
 from anki_core import build_llm_prompt_script, build_prompt, parse_cards_from_output
+from markdown_processor_wrapper import (
+    process_markdown_for_streamlit,
+    get_semantic_info_for_chunk,
+    load_pdf_sha256_from_meta
+)
 
 # Load environment variables
 load_dotenv()
@@ -55,7 +60,91 @@ if 'cards' not in st.session_state:
     st.session_state.cards = []
 if 'tsv_content' not in st.session_state:
     st.session_state.tsv_content = None
+if 'meta_path' not in st.session_state:
+    st.session_state.meta_path = None
+if 'pdf_sha256' not in st.session_state:
+    st.session_state.pdf_sha256 = None
 
+
+
+def generate_cards_from_chunk(
+    chunk_text: str,
+    chunk_id: str,
+    num_cards_per_chunk: int,
+    card_type: str,
+    note_type: str,
+    model_name: str,
+    pdf_sha256: Optional[str] = None,
+    semantic_info: Optional[dict] = None
+) -> List[Card]:
+    """
+    Generate Anki cards from a single chunk using OpenAI API.
+    
+    Args:
+        chunk_text: The chunk text content
+        chunk_id: ID of the chunk
+        num_cards_per_chunk: Number of cards to generate from this chunk
+        card_type: Type of cards to generate
+        note_type: Note type (basic or cloze)
+        model_name: LLM model name
+        semantic_info: Optional semantic structure information
+    
+    Returns:
+        List of Card objects
+    """
+    # Enhance prompt with semantic information if available
+    enhanced_content = chunk_text
+    if semantic_info:
+        key_terms = semantic_info.get("key_terms", [])
+        definitions = semantic_info.get("definitions", [])
+        if key_terms:
+            enhanced_content += f"\n\nKey terms in this section: {', '.join(key_terms[:10])}"
+        if definitions:
+            enhanced_content += "\n\nImportant definitions:\n"
+            for def_item in definitions[:5]:
+                enhanced_content += f"- {def_item.get('term', '')}: {def_item.get('definition', '')}\n"
+    
+    # Prepare the prompt
+    prompt_template = build_prompt(
+        note_type=note_type,
+        num_cards=num_cards_per_chunk,
+        content_focus=card_type,
+        markdown_content=enhanced_content,
+    )
+
+    try:
+        # Call OpenAI API
+        response = openai.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
+                {"role": "user", "content": prompt_template}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        # Parse the response
+        content = response.choices[0].message.content
+        cards = parse_cards_from_output(content, note_type)
+        
+        # Add chunk reference to cards
+        for card in cards:
+            if card.source_ref is None:
+                card.source_ref = SourceReference(
+                    pdf_sha256=pdf_sha256 or "",
+                    chunk_id=chunk_id
+                )
+            else:
+                if pdf_sha256:
+                    card.source_ref.pdf_sha256 = pdf_sha256
+                card.source_ref.chunk_id = chunk_id
+        
+        return cards
+        
+    except Exception as e:
+        st.warning(f"Error generating cards from chunk {chunk_id}: {str(e)}")
+        return []
 
 
 def generate_anki_cards(
@@ -63,6 +152,9 @@ def generate_anki_cards(
     num_cards: int = 10,
     card_type: str = "mixed",
     note_type: str = "basic",
+    use_chunking: bool = True,
+    pdf_sha256: Optional[str] = None,
+    max_tokens_per_chunk: int = 2000,
 ) -> List[Card]:
     """
     Generate Anki cards from markdown content using OpenAI API.
@@ -71,6 +163,10 @@ def generate_anki_cards(
         markdown_content: The markdown content to generate cards from
         num_cards: Number of cards to generate
         card_type: Type of cards to generate (definitions, concepts, mixed)
+        note_type: Note type (basic or cloze)
+        use_chunking: Whether to use chunking-based processing (default: True)
+        pdf_sha256: SHA256 hash of the source PDF (required if use_chunking=True)
+        max_tokens_per_chunk: Maximum tokens per chunk (default: 2000)
     
     Returns:
         List of Card objects
@@ -92,39 +188,95 @@ def generate_anki_cards(
         openai.api_key = api_key
         model_name = "gpt-4-turbo-preview"
     
-    # Prepare the prompt
-    prompt_template = build_prompt(
-        note_type=note_type,
-        num_cards=num_cards,
-        content_focus=card_type,
-        markdown_content=markdown_content,
-    )
-
-    try:
-        # Call OpenAI API
-        response = openai.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
-                {"role": "user", "content": prompt_template}
-            ],
-            temperature=0.7,
-            max_tokens=2000
+    # Use chunking-based approach if enabled
+    if use_chunking:
+        if not pdf_sha256:
+            st.warning("PDF SHA256 not provided. Falling back to non-chunking mode.")
+            use_chunking = False
+    
+    if use_chunking:
+        # Process markdown: clean and chunk
+        cleaned_markdown, chunking_result = process_markdown_for_streamlit(
+            markdown_content,
+            pdf_sha256=pdf_sha256,
+            max_tokens=max_tokens_per_chunk,
+            remove_images=False
         )
         
-        # Parse the response
-        content = response.choices[0].message.content
-        cards = []
+        # Calculate cards per chunk
+        total_chunks = chunking_result.total_chunks
+        if total_chunks == 0:
+            st.warning("No chunks created from markdown content.")
+            return []
         
-        # Split by numbered items
-        import re
-        cards = parse_cards_from_output(content, note_type)
+        cards_per_chunk = max(1, num_cards // total_chunks)
+        remaining_cards = num_cards
         
-        return cards
+        all_cards: List[Card] = []
+        progress_bar = st.progress(0)
+        status_text = st.empty()
         
-    except Exception as e:
-        st.error(f"Error generating cards: {str(e)}")
-        return []
+        # Process each chunk
+        for i, chunk in enumerate(chunking_result.chunks):
+            if remaining_cards <= 0:
+                break
+            
+            status_text.text(f"Processing chunk {i+1}/{total_chunks}...")
+            progress_bar.progress((i + 1) / total_chunks)
+            
+            # Get semantic info for the chunk
+            semantic_info = get_semantic_info_for_chunk(chunk)
+            
+            # Generate cards from this chunk
+            chunk_cards = generate_cards_from_chunk(
+                chunk_text=chunk.text,
+                chunk_id=chunk.id,
+                num_cards_per_chunk=min(cards_per_chunk, remaining_cards),
+                card_type=card_type,
+                note_type=note_type,
+                model_name=model_name,
+                pdf_sha256=pdf_sha256,
+                semantic_info=semantic_info
+            )
+            
+            all_cards.extend(chunk_cards)
+            remaining_cards -= len(chunk_cards)
+        
+        progress_bar.empty()
+        status_text.empty()
+        
+        return all_cards[:num_cards]  # Limit to requested number
+    
+    else:
+        # Original non-chunking approach
+        prompt_template = build_prompt(
+            note_type=note_type,
+            num_cards=num_cards,
+            content_focus=card_type,
+            markdown_content=markdown_content,
+        )
+
+        try:
+            # Call OpenAI API
+            response = openai.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
+                    {"role": "user", "content": prompt_template}
+                ],
+                temperature=0.7,
+                max_tokens=2000
+            )
+            
+            # Parse the response
+            content = response.choices[0].message.content
+            cards = parse_cards_from_output(content, note_type)
+            
+            return cards
+            
+        except Exception as e:
+            st.error(f"Error generating cards: {str(e)}")
+            return []
 
 
 def main():
@@ -164,6 +316,21 @@ def main():
             "Anki note type",
             ["basic", "cloze"],
             help="Choose 'basic' (Front/Back) or 'cloze' ({{c1::...}} with Extra)"
+        )
+        
+        # Chunking settings
+        st.subheader("Processing Options")
+        use_chunking = st.checkbox(
+            "Use intelligent chunking",
+            value=True,
+            help="Enable markdown cleaning and chunking for better card generation"
+        )
+        max_tokens_per_chunk = st.number_input(
+            "Max tokens per chunk",
+            min_value=500,
+            max_value=4000,
+            value=2000,
+            help="Maximum tokens per chunk (affects chunk size)"
         )
         
         # LLM configuration (OpenAI-compatible or OpenAI)
@@ -222,15 +389,30 @@ def main():
                         with open(result.markdown_path, 'r', encoding='utf-8') as f:
                             markdown_content = f.read()
                         
+                        # Load PDF SHA256 from metadata
+                        pdf_sha256 = load_pdf_sha256_from_meta(result.meta_path)
+                        if not pdf_sha256:
+                            # Try to extract from meta.json directly
+                            try:
+                                with open(result.meta_path, 'r', encoding='utf-8') as meta_file:
+                                    meta_data = json.load(meta_file)
+                                    pdf_sha256 = meta_data.get("source_sha256")
+                            except Exception:
+                                pass
+                        
                         # Store in session state
                         st.session_state.markdown_content = markdown_content
                         st.session_state.markdown_path = result.markdown_path
+                        st.session_state.meta_path = result.meta_path
+                        st.session_state.pdf_sha256 = pdf_sha256
                         st.session_state.conversion_done = True
                         
                         # Clean up temp PDF
                         os.unlink(tmp_path)
                         
                         st.success("✅ PDF converted successfully!")
+                        if pdf_sha256:
+                            st.info(f"PDF SHA256: {pdf_sha256[:16]}...")
                         
                     except Exception as e:
                         st.error(f"❌ Error converting PDF: {str(e)}")
@@ -274,6 +456,9 @@ def main():
                         num_cards=num_cards,
                         card_type=card_type,
                         note_type=note_type,
+                        use_chunking=use_chunking,
+                        pdf_sha256=st.session_state.pdf_sha256,
+                        max_tokens_per_chunk=max_tokens_per_chunk,
                     )
                     
                     if cards:
