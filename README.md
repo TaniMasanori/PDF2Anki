@@ -49,7 +49,14 @@ OPENAI_MODEL=gpt-4-turbo
 MARKER_API_BASE=http://localhost:8000
 ```
 
-Note: `gpt-4-turbo-preview` is deprecated. Use `gpt-4-turbo`, `gpt-4o`, or other available models.
+Example `.env` for OpenAI with GPT-5 mini:
+```
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-5-mini
+MARKER_API_BASE=http://localhost:8000
+```
+
+Note: `gpt-4-turbo-preview` is deprecated. Use `gpt-4-turbo`, `gpt-4o`, `gpt-5-mini`, or other available models.
 
 Example `.env` for Llama:
 ```
