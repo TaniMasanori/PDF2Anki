@@ -49,18 +49,26 @@ def build_output_instructions(note_type: str, num_cards: int) -> str:
 def build_prompt(note_type: str, num_cards: int, content_focus: str, markdown_content: str) -> str:
     """
     Build the full user prompt for the chat completion request.
+    Note: System message should be set separately (e.g., "You are a helpful assistant that creates educational flashcards.")
     """
     focus = content_focus if content_focus and content_focus != "mixed" else "key concepts, definitions, and important details"
     instructions = build_output_instructions(note_type, num_cards)
     content = (markdown_content or "")[:4000]
     return (
-        "You are an assistant that creates Anki flashcards.\n\n"
-        f"Focus on {focus}.\n\n"
+        f"Create Anki flashcards from the following content. Focus on {focus}.\n\n"
         "IMPORTANT:\n"
         f"- {instructions}\n"
         "- Do not include any other text, explanations, headings, or formatting.\n"
-        "- Ensure mathematical expressions are wrapped in $...$ for inline math or $$...$$ for display math.\n"
         "- Keep each item concise but informative.\n\n"
+        "MATHEMATICAL EXPRESSIONS (MathJax/LaTeX):\n"
+        "- Use MathJax format for all mathematical expressions in TSV fields.\n"
+        "- Inline math: \\( ... \\) for expressions within text (e.g., What is the gradient of \\(f(x)=x^2\\)?)\n"
+        "- Display math: \\[ ... \\] for centered equations on their own line (e.g., \\[\\frac{\\partial^2 u}{\\partial t^2}=c^2\\nabla^2 u\\])\n"
+        "- For cloze deletions with math, wrap the math inside the cloze: {{c1::\\(formula\\)}}\n"
+        "- Avoid literal tab characters inside formulas; use spaces instead.\n"
+        "- Use <br> for line breaks inside fields (HTML is allowed).\n"
+        "- If the source content uses [$]...[/$] format, convert to MathJax: [$]...[/$] → \\(...\\) (inline) or \\[...\\] (display)\n"
+        "- Complex environments like \\begin{aligned}...\\end{aligned} work in \\[...\\] blocks.\n\n"
         f"Content:\n{content}\n"
     )
 
@@ -110,7 +118,11 @@ def build_llm_prompt_script(md_path: str, num_cards: int, note_type: str, conten
     """
     Build a Bash script that calls an OpenAI-compatible endpoint to generate cards.
     """
-    prompt_header = build_prompt(note_type=note_type, num_cards=num_cards, content_focus=content_focus, markdown_content="")
+    # Build prompt header without content (remove trailing "Content:\n" line)
+    prompt_with_empty = build_prompt(note_type=note_type, num_cards=num_cards, content_focus=content_focus, markdown_content="")
+    # Remove the trailing "Content:\n" line since we'll add it in the script
+    prompt_header = prompt_with_empty.rstrip().rsplit("Content:", 1)[0].rstrip()
+    
     script = f"""#!/usr/bin/env bash
 set -euo pipefail
 
@@ -124,11 +136,15 @@ CONTENT=$(cat "$CONTENT_FILE")
 
 read -r -d '' PROMPT <<'EOF'
 {prompt_header}
+
+Content:
 EOF
 
-USER_INPUT="$PROMPT\n\nContent:\n$CONTENT"
+USER_INPUT="$PROMPT$CONTENT"
 
-DATA=$(jq -n --arg model "$LLM_MODEL" --arg sys "You are a helpful assistant that creates educational flashcards." --arg prompt "$USER_INPUT" '{{model:$model, messages:[{{"role":"system", "content":$sys}},{{"role":"user", "content":$prompt}}], temperature:0.2, max_tokens:2000}}')
+# Note: Some models (e.g., gpt-5-mini) don't support temperature parameter.
+# If you get an error about unsupported temperature, remove the temperature line below.
+DATA=$(jq -n --arg model "$LLM_MODEL" --arg sys "You are a helpful assistant that creates educational flashcards." --arg prompt "$USER_INPUT" '{{model:$model, messages:[{{"role":"system", "content":$sys}},{{"role":"user", "content":$prompt}}], max_completion_tokens:2000}}')
 
 echo "Requesting LLM at $LLM_API_BASE with model $LLM_MODEL..." 1>&2
 curl -sS -X POST "$LLM_API_BASE/chat/completions" \

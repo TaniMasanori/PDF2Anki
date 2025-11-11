@@ -27,6 +27,7 @@ import json
 import time
 from typing import List, Optional
 import openai
+from openai import APIError, RateLimitError, APIConnectionError, APITimeoutError
 from dotenv import load_dotenv
 
 # Import our local modules
@@ -64,6 +65,10 @@ if 'meta_path' not in st.session_state:
     st.session_state.meta_path = None
 if 'pdf_sha256' not in st.session_state:
     st.session_state.pdf_sha256 = None
+if 'cancel_generation' not in st.session_state:
+    st.session_state.cancel_generation = False
+if 'generating' not in st.session_state:
+    st.session_state.generating = False
 
 
 
@@ -113,15 +118,14 @@ def generate_cards_from_chunk(
     )
 
     try:
-        # Call OpenAI API
+        # Call OpenAI API (without temperature parameter as default)
         response = openai.chat.completions.create(
             model=model_name,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
                 {"role": "user", "content": prompt_template}
             ],
-            temperature=0.7,
-            max_tokens=2000
+            max_completion_tokens=2000
         )
         
         # Parse the response
@@ -142,8 +146,40 @@ def generate_cards_from_chunk(
         
         return cards
         
+    except RateLimitError as e:
+        error_msg = str(e)
+        if "quota" in error_msg.lower() or "insufficient_quota" in error_msg.lower():
+            st.error(f"**API Quota Exceeded** (chunk {chunk_id})\n\n"
+                    f"You have exceeded your OpenAI API quota. Please check your billing and plan details.\n\n"
+                    f"For more information: https://platform.openai.com/docs/guides/error-codes/api-errors")
+        else:
+            st.warning(f"**Rate Limit Error** (chunk {chunk_id})\n\n"
+                      f"Too many requests. Please wait a moment and try again.\n\n"
+                      f"Error: {error_msg}")
+        return []
+    except APIError as e:
+        error_msg = str(e)
+        if "model_not_found" in error_msg.lower():
+            st.error(f"**Model Not Found** (chunk {chunk_id})\n\n"
+                    f"The specified model does not exist or you don't have access to it.\n\n"
+                    f"Error: {error_msg}\n\n"
+                    f"Please check your OPENAI_MODEL setting in .env file.")
+        elif "max_tokens" in error_msg.lower() or ("unsupported_parameter" in error_msg.lower() and "max_tokens" in error_msg.lower()):
+            st.error(f"**Unsupported Parameter** (chunk {chunk_id})\n\n"
+                    f"This model requires 'max_completion_tokens' instead of 'max_tokens'.\n\n"
+                    f"Error: {error_msg}\n\n"
+                    f"Please update the code or use a different model.")
+        else:
+            st.error(f"**API Error** (chunk {chunk_id})\n\n"
+                    f"Error: {error_msg}")
+        return []
+    except (APIConnectionError, APITimeoutError) as e:
+        st.warning(f"**Connection Error** (chunk {chunk_id})\n\n"
+                  f"Failed to connect to the API. Please check your internet connection and try again.\n\n"
+                  f"Error: {str(e)}")
+        return []
     except Exception as e:
-        st.warning(f"Error generating cards from chunk {chunk_id}: {str(e)}")
+        st.warning(f"**Error generating cards from chunk {chunk_id}**: {str(e)}")
         return []
 
 
@@ -186,7 +222,8 @@ def generate_anki_cards(
             st.error("No LLM configured. Set LLM_API_BASE (for Llama) or OPENAI_API_KEY.")
             return []
         openai.api_key = api_key
-        model_name = "gpt-4-turbo-preview"
+        # Use OPENAI_MODEL env var if set, otherwise default to gpt-4-turbo
+        model_name = os.getenv("OPENAI_MODEL", "gpt-4-turbo")
     
     # Use chunking-based approach if enabled
     if use_chunking:
@@ -220,6 +257,15 @@ def generate_anki_cards(
         for i, chunk in enumerate(chunking_result.chunks):
             if remaining_cards <= 0:
                 break
+            
+            # Check if generation was cancelled
+            if st.session_state.cancel_generation:
+                st.warning("Card generation cancelled by user.")
+                progress_bar.empty()
+                status_text.empty()
+                st.session_state.cancel_generation = False
+                st.session_state.generating = False
+                return all_cards[:num_cards] if all_cards else []
             
             status_text.text(f"Processing chunk {i+1}/{total_chunks}...")
             progress_bar.progress((i + 1) / total_chunks)
@@ -257,15 +303,14 @@ def generate_anki_cards(
         )
 
         try:
-            # Call OpenAI API
+            # Call OpenAI API (without temperature parameter as default)
             response = openai.chat.completions.create(
                 model=model_name,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
                     {"role": "user", "content": prompt_template}
                 ],
-                temperature=0.7,
-                max_tokens=2000
+                max_completion_tokens=2000
             )
             
             # Parse the response
@@ -274,8 +319,39 @@ def generate_anki_cards(
             
             return cards
             
+        except RateLimitError as e:
+            error_msg = str(e)
+            if "quota" in error_msg.lower() or "insufficient_quota" in error_msg.lower():
+                st.error("**API Quota Exceeded**\n\n"
+                        "You have exceeded your OpenAI API quota. Please check your billing and plan details.\n\n"
+                        "For more information: https://platform.openai.com/docs/guides/error-codes/api-errors")
+            else:
+                st.warning("**Rate Limit Error**\n\n"
+                          "Too many requests. Please wait a moment and try again.\n\n"
+                          f"Error: {error_msg}")
+            return []
+        except APIError as e:
+            error_msg = str(e)
+            if "model_not_found" in error_msg.lower():
+                st.error("**Model Not Found**\n\n"
+                        "The specified model does not exist or you don't have access to it.\n\n"
+                        f"Error: {error_msg}\n\n"
+                        "Please check your OPENAI_MODEL setting in .env file.")
+            elif "max_tokens" in error_msg.lower() or ("unsupported_parameter" in error_msg.lower() and "max_tokens" in error_msg.lower()):
+                st.error("**Unsupported Parameter**\n\n"
+                        "This model requires 'max_completion_tokens' instead of 'max_tokens'.\n\n"
+                        f"Error: {error_msg}\n\n"
+                        "Please update the code or use a different model.")
+            else:
+                st.error(f"**API Error**: {error_msg}")
+            return []
+        except (APIConnectionError, APITimeoutError) as e:
+            st.warning("**Connection Error**\n\n"
+                      "Failed to connect to the API. Please check your internet connection and try again.\n\n"
+                      f"Error: {str(e)}")
+            return []
         except Exception as e:
-            st.error(f"Error generating cards: {str(e)}")
+            st.error(f"**Error generating cards**: {str(e)}")
             return []
 
 
@@ -340,7 +416,8 @@ def main():
         if llm_base:
             st.info(f"Using OpenAI-compatible endpoint: {llm_base} (model: {llm_model})")
         elif os.getenv("OPENAI_API_KEY"):
-            st.success("Using OpenAI (OPENAI_API_KEY configured)")
+            openai_model = os.getenv("OPENAI_MODEL", "gpt-4-turbo")
+            st.success(f"Using OpenAI (model: {openai_model})")
         else:
             st.warning("No LLM configured. Set LLM_API_BASE for Llama or OPENAI_API_KEY for OpenAI.")
     
@@ -448,8 +525,24 @@ def main():
                     mime="text/x-shellscript"
                 )
             
-            # Generate cards button
-            if st.button("🎴 Generate Anki Cards", type="primary"):
+            # Generate cards button and stop button
+            col_gen, col_stop = st.columns([1, 1])
+            with col_gen:
+                generate_clicked = st.button("Generate Anki Cards", type="primary")
+            with col_stop:
+                stop_clicked = st.button("Stop Generation", disabled=not st.session_state.get('generating', False))
+            
+            if stop_clicked:
+                st.session_state.cancel_generation = True
+                st.session_state.generating = False
+                st.warning("Stopping card generation...")
+                st.rerun()
+            
+            if generate_clicked:
+                # Reset cancel flag and set generating flag
+                st.session_state.cancel_generation = False
+                st.session_state.generating = True
+                
                 with st.spinner(f"Generating {num_cards} Anki cards..."):
                     cards = generate_anki_cards(
                         st.session_state.markdown_content,
@@ -460,6 +553,9 @@ def main():
                         pdf_sha256=st.session_state.pdf_sha256,
                         max_tokens_per_chunk=max_tokens_per_chunk,
                     )
+                    
+                    # Reset generating flag
+                    st.session_state.generating = False
                     
                     if cards:
                         st.session_state.cards = cards
