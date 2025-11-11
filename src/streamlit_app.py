@@ -119,15 +119,31 @@ def generate_cards_from_chunk(
 
     try:
         # Call OpenAI API
-        response = openai.chat.completions.create(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
-                {"role": "user", "content": prompt_template}
-            ],
-            temperature=0.7,
-            max_completion_tokens=2000
-        )
+        # Try with temperature first, fallback to default if not supported
+        try:
+            response = openai.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
+                    {"role": "user", "content": prompt_template}
+                ],
+                temperature=0.7,
+                max_completion_tokens=2000
+            )
+        except APIError as temp_error:
+            error_msg = str(temp_error)
+            # If temperature is not supported, retry without it
+            if "temperature" in error_msg.lower() and "unsupported" in error_msg.lower():
+                response = openai.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
+                        {"role": "user", "content": prompt_template}
+                    ],
+                    max_completion_tokens=2000
+                )
+            else:
+                raise
         
         # Parse the response
         content = response.choices[0].message.content
@@ -165,11 +181,16 @@ def generate_cards_from_chunk(
                     f"The specified model does not exist or you don't have access to it.\n\n"
                     f"Error: {error_msg}\n\n"
                     f"Please check your OPENAI_MODEL setting in .env file.")
-        elif "max_tokens" in error_msg.lower() or "unsupported_parameter" in error_msg.lower():
+        elif "max_tokens" in error_msg.lower() or ("unsupported_parameter" in error_msg.lower() and "max_tokens" in error_msg.lower()):
             st.error(f"**Unsupported Parameter** (chunk {chunk_id})\n\n"
                     f"This model requires 'max_completion_tokens' instead of 'max_tokens'.\n\n"
                     f"Error: {error_msg}\n\n"
                     f"Please update the code or use a different model.")
+        elif "temperature" in error_msg.lower() and "unsupported" in error_msg.lower():
+            st.error(f"**Unsupported Parameter** (chunk {chunk_id})\n\n"
+                    f"This model does not support custom temperature values. Only default temperature (1) is supported.\n\n"
+                    f"Error: {error_msg}\n\n"
+                    f"The code will automatically retry without temperature parameter.")
         else:
             st.error(f"**API Error** (chunk {chunk_id})\n\n"
                     f"Error: {error_msg}")
@@ -305,15 +326,31 @@ def generate_anki_cards(
 
         try:
             # Call OpenAI API
-            response = openai.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
-                    {"role": "user", "content": prompt_template}
-                ],
-                temperature=0.7,
-                max_completion_tokens=2000
-            )
+            # Try with temperature first, fallback to default if not supported
+            try:
+                response = openai.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
+                        {"role": "user", "content": prompt_template}
+                    ],
+                    temperature=0.7,
+                    max_completion_tokens=2000
+                )
+            except APIError as temp_error:
+                error_msg = str(temp_error)
+                # If temperature is not supported, retry without it
+                if "temperature" in error_msg.lower() and "unsupported" in error_msg.lower():
+                    response = openai.chat.completions.create(
+                        model=model_name,
+                        messages=[
+                            {"role": "system", "content": "You are a helpful assistant that creates educational flashcards."},
+                            {"role": "user", "content": prompt_template}
+                        ],
+                        max_completion_tokens=2000
+                    )
+                else:
+                    raise
             
             # Parse the response
             content = response.choices[0].message.content
@@ -339,11 +376,16 @@ def generate_anki_cards(
                         "The specified model does not exist or you don't have access to it.\n\n"
                         f"Error: {error_msg}\n\n"
                         "Please check your OPENAI_MODEL setting in .env file.")
-            elif "max_tokens" in error_msg.lower() or "unsupported_parameter" in error_msg.lower():
+            elif "max_tokens" in error_msg.lower() or ("unsupported_parameter" in error_msg.lower() and "max_tokens" in error_msg.lower()):
                 st.error("**Unsupported Parameter**\n\n"
                         "This model requires 'max_completion_tokens' instead of 'max_tokens'.\n\n"
                         f"Error: {error_msg}\n\n"
                         "Please update the code or use a different model.")
+            elif "temperature" in error_msg.lower() and "unsupported" in error_msg.lower():
+                st.error("**Unsupported Parameter**\n\n"
+                        "This model does not support custom temperature values. Only default temperature (1) is supported.\n\n"
+                        f"Error: {error_msg}\n\n"
+                        "The code will automatically retry without temperature parameter.")
             else:
                 st.error(f"**API Error**: {error_msg}")
             return []
