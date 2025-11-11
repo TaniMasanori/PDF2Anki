@@ -188,6 +188,17 @@ This error appears when trying to generate Anki cards without LLM configuration.
    - **For Llama/OpenAI-compatible**: Add `LLM_API_BASE=http://your-llm-server:port` (and optionally `LLM_MODEL` and `LLM_API_KEY`)
 3. Restart Streamlit app after updating `.env`
 
+### "API Quota Exceeded" or Error code: 429
+
+This error means you have exceeded your OpenAI API quota or billing limit.
+
+**Solution**:
+1. Check your OpenAI account billing and usage: https://platform.openai.com/usage
+2. Verify your payment method is set up correctly: https://platform.openai.com/account/billing
+3. Consider upgrading your plan or adding credits if needed
+4. Wait for your quota to reset (usually monthly)
+5. Alternatively, use a local LLM server by setting `LLM_API_BASE` in `.env` to avoid API costs
+
 ## Project Structure
 
 ```

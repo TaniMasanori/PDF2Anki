@@ -27,6 +27,7 @@ import json
 import time
 from typing import List, Optional
 import openai
+from openai import APIError, RateLimitError, APIConnectionError, APITimeoutError
 from dotenv import load_dotenv
 
 # Import our local modules
@@ -142,8 +143,35 @@ def generate_cards_from_chunk(
         
         return cards
         
+    except RateLimitError as e:
+        error_msg = str(e)
+        if "quota" in error_msg.lower() or "insufficient_quota" in error_msg.lower():
+            st.error(f"**API Quota Exceeded** (chunk {chunk_id})\n\n"
+                    f"You have exceeded your OpenAI API quota. Please check your billing and plan details.\n\n"
+                    f"For more information: https://platform.openai.com/docs/guides/error-codes/api-errors")
+        else:
+            st.warning(f"**Rate Limit Error** (chunk {chunk_id})\n\n"
+                      f"Too many requests. Please wait a moment and try again.\n\n"
+                      f"Error: {error_msg}")
+        return []
+    except APIError as e:
+        error_msg = str(e)
+        if "model_not_found" in error_msg.lower():
+            st.error(f"**Model Not Found** (chunk {chunk_id})\n\n"
+                    f"The specified model does not exist or you don't have access to it.\n\n"
+                    f"Error: {error_msg}\n\n"
+                    f"Please check your OPENAI_MODEL setting in .env file.")
+        else:
+            st.error(f"**API Error** (chunk {chunk_id})\n\n"
+                    f"Error: {error_msg}")
+        return []
+    except (APIConnectionError, APITimeoutError) as e:
+        st.warning(f"**Connection Error** (chunk {chunk_id})\n\n"
+                  f"Failed to connect to the API. Please check your internet connection and try again.\n\n"
+                  f"Error: {str(e)}")
+        return []
     except Exception as e:
-        st.warning(f"Error generating cards from chunk {chunk_id}: {str(e)}")
+        st.warning(f"**Error generating cards from chunk {chunk_id}**: {str(e)}")
         return []
 
 
@@ -275,8 +303,34 @@ def generate_anki_cards(
             
             return cards
             
+        except RateLimitError as e:
+            error_msg = str(e)
+            if "quota" in error_msg.lower() or "insufficient_quota" in error_msg.lower():
+                st.error("**API Quota Exceeded**\n\n"
+                        "You have exceeded your OpenAI API quota. Please check your billing and plan details.\n\n"
+                        "For more information: https://platform.openai.com/docs/guides/error-codes/api-errors")
+            else:
+                st.warning("**Rate Limit Error**\n\n"
+                          "Too many requests. Please wait a moment and try again.\n\n"
+                          f"Error: {error_msg}")
+            return []
+        except APIError as e:
+            error_msg = str(e)
+            if "model_not_found" in error_msg.lower():
+                st.error("**Model Not Found**\n\n"
+                        "The specified model does not exist or you don't have access to it.\n\n"
+                        f"Error: {error_msg}\n\n"
+                        "Please check your OPENAI_MODEL setting in .env file.")
+            else:
+                st.error(f"**API Error**: {error_msg}")
+            return []
+        except (APIConnectionError, APITimeoutError) as e:
+            st.warning("**Connection Error**\n\n"
+                      "Failed to connect to the API. Please check your internet connection and try again.\n\n"
+                      f"Error: {str(e)}")
+            return []
         except Exception as e:
-            st.error(f"Error generating cards: {str(e)}")
+            st.error(f"**Error generating cards**: {str(e)}")
             return []
 
 
