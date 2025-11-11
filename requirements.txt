@@ -3,6 +3,7 @@ uvicorn>=0.30.0 # if running local FastAPI-based servers in dev
 fastapi>=0.115.0 # optional: aligns with typical Marker API stacks
 marker-pdf>=0.4.0
 pypdf>=4.2.0
+tiktoken>=0.5.0
 
 marker-pdf>=1.10.1
 streamlit>=1.29.0
