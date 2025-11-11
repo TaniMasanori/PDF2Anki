@@ -4,22 +4,34 @@ Convert PDF documents (lecture slides, academic papers) to Anki flashcards using
 
 ## Features
 
-- 📄 **PDF to Markdown conversion** using Marker API
-- 🤖 **AI-powered flashcard generation** using GPT-4
-- 🎴 **Anki-ready TSV export** for easy import
-- 🌐 **Web interface** built with Streamlit
-- 📐 **LaTeX support** for mathematical expressions
-- 🏷️ **Automatic tagging** for card organization
+- **PDF to Markdown conversion** using Marker API
+- **AI-powered flashcard generation** using OpenAI GPT models or compatible LLMs
+- **Anki-ready TSV export** for easy import
+- **Web interface** built with Streamlit
+- **MathJax/LaTeX support** for mathematical expressions
+- **Automatic tagging** for card organization
+- **Intelligent chunking** for better card generation from long documents
 
-## Quick Start
+## Installation Guide
 
-### 1. Prerequisites
+### Step 1: Prerequisites
 
-- Python 3.8+
-- Marker API server running (see `marker-api/` directory)
-- OpenAI API key
+Before you begin, make sure you have:
 
-### 2. Setup
+1. **Python 3.8 or higher** installed
+   - Check your Python version: `python3 --version` or `python --version`
+   - Download from [python.org](https://www.python.org/downloads/) if needed
+
+2. **OpenAI API key** (for AI card generation)
+   - Sign up at [platform.openai.com](https://platform.openai.com/)
+   - Get your API key from [API Keys page](https://platform.openai.com/api-keys)
+   - You'll need a paid account or credits
+
+3. **Marker API server** (for PDF to Markdown conversion)
+   - This will be set up in Step 3
+   - Requires Python 3.10+ for the Marker API server
+
+### Step 2: Clone and Setup the Repository
 
 ```bash
 # Clone the repository
@@ -28,176 +40,339 @@ cd PDF2Anki
 
 # Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Activate virtual environment
+# On Linux/Mac:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+```
 
+**Verify installation**: Run `pip list` to confirm packages are installed.
+
+### Step 3: Configure Environment Variables
+
+Create a `.env` file in the project root directory:
+
+```bash
 # Create .env file
-echo "OPENAI_API_KEY=your_api_key_here" > .env
-echo "MARKER_API_BASE=http://localhost:8000" >> .env
+touch .env  # On Windows: type nul > .env
 ```
 
-**LLM Configuration**: The app requires either:
-- **OpenAI**: Set `OPENAI_API_KEY` in `.env` (defaults to `gpt-4-turbo`, can be overridden with `OPENAI_MODEL`)
-- **Llama/OpenAI-compatible**: Set `LLM_API_BASE` (and optionally `LLM_MODEL` and `LLM_API_KEY`) in `.env`
+Edit the `.env` file with your preferred text editor and add the following:
 
-Example `.env` for OpenAI:
-```
-OPENAI_API_KEY=sk-...
+#### Option A: Using OpenAI (Recommended for beginners)
+
+```bash
+OPENAI_API_KEY=sk-your-api-key-here
 OPENAI_MODEL=gpt-4-turbo
 MARKER_API_BASE=http://localhost:8000
 ```
 
-Example `.env` for OpenAI with GPT-5 mini:
-```
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-5-mini
-MARKER_API_BASE=http://localhost:8000
-```
+**Getting your OpenAI API key**:
+1. Go to [platform.openai.com](https://platform.openai.com/)
+2. Sign in or create an account
+3. Navigate to [API Keys](https://platform.openai.com/api-keys)
+4. Click "Create new secret key"
+5. Copy the key and paste it in your `.env` file
 
-Note: `gpt-4-turbo-preview` is deprecated. Use `gpt-4-turbo`, `gpt-4o`, `gpt-5-mini`, or other available models.
+**Available OpenAI models**:
+- `gpt-4-turbo` (default, recommended)
+- `gpt-5-mini` (cost-effective)
+- `gpt-4o` (latest)
+- Note: `gpt-4-turbo-preview` is deprecated
 
-Example `.env` for Llama:
-```
-LLM_API_BASE=http://localhost:8080
+#### Option B: Using Local LLM (Advanced)
+
+If you have a local LLM server running (e.g., llama.cpp, vLLM, LM Studio):
+
+```bash
+LLM_API_BASE=http://localhost:8080/v1
 LLM_MODEL=llama-3.1-8b-instruct
 LLM_API_KEY=no-key-required
 MARKER_API_BASE=http://localhost:8000
 ```
 
-### 3. Start Marker API Server
+**Important**: Make sure `.env` is in `.gitignore` (it should be by default) to keep your API keys secure.
 
-**Important**: You need to run Marker API server in a **separate terminal** before starting Streamlit.
+### Step 4: Setup Marker API Server
 
-Open a new terminal and run:
+The Marker API server converts PDFs to Markdown. You need to set it up separately.
+
+#### 4.1 Clone Marker API Repository
 
 ```bash
-# Navigate to marker-api directory
+# Navigate to project root (if not already there)
+cd PDF2Anki
+
+# Clone Marker API repository
+git clone https://github.com/VikParuchuri/marker.git marker-api
+cd marker-api
+```
+
+#### 4.2 Install Marker API Dependencies
+
+```bash
+# Create virtual environment for Marker API
+python3 -m venv .venv
+
+# Activate virtual environment
+# On Linux/Mac:
+source .venv/bin/activate
+# On Windows:
+# .venv\Scripts\activate
+
+# Upgrade pip
+python -m pip install -U pip
+
+# Install Marker API
+pip install -e .
+```
+
+**Note**: Marker API requires Python 3.10 or higher. Installation may take several minutes as it downloads models.
+
+#### 4.3 Start Marker API Server
+
+**Important**: Keep this terminal window open while using PDF2Anki.
+
+```bash
+# Make sure you're in the marker-api directory
 cd marker-api
 
-# (Optional) Create and activate virtual environment
-python3 -m venv .venv
+# Activate virtual environment (if not already activated)
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install dependencies (first time only)
-python -m pip install -U pip
-pip install -e .
-
-# Start the server (default port: 8000)
+# Start the server
 python server.py --host 0.0.0.0 --port 8000
 ```
 
-**Note**: 
-- Marker API requires Python 3.10+
-- The server will take some time to load models on first startup
-- Keep this terminal open while using the application
+**What to expect**:
+- First startup will download models (this can take 5-10 minutes)
+- You'll see "Application startup complete" when ready
+- The server will keep running until you stop it (Ctrl+C)
 
 **Verify the server is running**:
-- Health check: Open `http://localhost:8000/health` in your browser
-- API docs: Open `http://localhost:8000/docs` in your browser
-- Gradio UI: Open `http://localhost:8000/gradio` in your browser (optional)
+1. Open your browser and go to: `http://localhost:8000/health`
+2. You should see `{"status":"ok"}` or similar
+3. API documentation: `http://localhost:8000/docs`
+4. Optional Gradio UI: `http://localhost:8000/gradio`
 
-### 4. Launch Streamlit Web Interface
+**Troubleshooting**:
+- If port 8000 is in use, change the port: `python server.py --host 0.0.0.0 --port 8888`
+- Update `MARKER_API_BASE` in your `.env` file to match the port you're using
 
-Open a **new terminal** (keep the Marker API server running in the first terminal) and run:
+### Step 5: Launch Streamlit Web Interface
+
+**Important**: Make sure the Marker API server is running (Step 4) before starting Streamlit.
+
+Open a **new terminal window** (keep the Marker API server terminal open) and run:
 
 ```bash
 # Navigate to project root
 cd PDF2Anki
 
-# Activate virtual environment (if not already activated)
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Activate virtual environment
+# On Linux/Mac:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
 
 # Start Streamlit app
-./run_streamlit.sh
-```
-
-Or manually:
-```bash
 streamlit run src/streamlit_app.py
 ```
 
-The Streamlit app will open automatically in your browser at `http://localhost:8501`
-
-### 5. Configure Marker API URL in Browser
-
-After the Streamlit app opens in your browser:
-
-1. **Look at the left sidebar** - you'll see "⚙️ Settings" section
-2. **Find "Marker API" subsection**
-3. **In the "Marker API URL" text field**, enter:
-   - `http://localhost:8000` (if Marker API is running on port 8000)
-   - `http://localhost:8888` (if Marker API is running on port 8888)
-   - Or any other port where your Marker API server is running
-
-**Important**: The Marker API URL in Streamlit must match the port where your Marker API server is actually running. The default is port 8000, but you can use any available port.
-
-**Quick check**: If you're not sure which port Marker API is using, check the terminal where you started the server - it will show something like:
-```
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+**Alternative**: Use the provided script:
+```bash
+./run_streamlit.sh  # On Linux/Mac
 ```
 
-## Usage
+The Streamlit app will automatically open in your browser at `http://localhost:8501`
 
-Once both servers are running and the Marker API URL is configured:
+If it doesn't open automatically, manually navigate to: `http://localhost:8501`
 
-1. **Upload PDF**: Select your PDF file in the web interface
-2. **Convert**: Click "🔄 Convert to Markdown" button
-   - Make sure the Marker API URL in the sidebar matches your running server
-3. **Generate**: Click "🎴 Generate Anki Cards" with your desired settings
-4. **Download**: Get the TSV file for Anki import
-5. **Import**: Open Anki → File → Import → Select TSV file
+### Step 6: Configure Settings in Web Interface
+
+When the Streamlit app opens:
+
+1. **Check the left sidebar** - you'll see "Settings" section
+2. **Marker API URL**: Verify it matches your Marker API server port
+   - Default: `http://localhost:8000`
+   - If you changed the port, update this field
+3. **LLM API**: Check that your LLM configuration is detected
+   - Should show "Using OpenAI (model: gpt-4-turbo)" or similar
+   - If not, verify your `.env` file is correct and restart Streamlit
+
+**Quick verification**:
+- Check the terminal where Marker API is running - it should show: `INFO: Uvicorn running on http://0.0.0.0:8000`
+- The port number in Streamlit must match this port
+
+## Usage Guide
+
+### First Time Setup Checklist
+
+Before using the app, verify:
+
+- [ ] Marker API server is running (Step 4)
+- [ ] Streamlit app is running (Step 5)
+- [ ] `.env` file is configured with your API key (Step 3)
+- [ ] Marker API URL in Streamlit sidebar matches your server port (Step 6)
+
+### Creating Your First Anki Cards
+
+1. **Upload PDF**
+   - Click "Choose a PDF file" button
+   - Select your PDF document (lecture slides, papers, etc.)
+   - File will be uploaded and displayed
+
+2. **Convert PDF to Markdown**
+   - Click "Convert to Markdown" button
+   - Wait for conversion to complete (may take 30 seconds to a few minutes)
+   - You'll see a success message when done
+   - Optionally preview the markdown in the expandable section
+
+3. **Configure Card Generation Settings** (in sidebar)
+   - **Number of cards**: How many flashcards to generate (default: 10)
+   - **Content focus**: Choose what to focus on (mixed, definitions, concepts, facts)
+   - **Anki note type**: Basic (Front/Back) or Cloze deletion
+   - **Use intelligent chunking**: Recommended for better results (enabled by default)
+   - **Max tokens per chunk**: Adjust if needed (default: 2000)
+
+4. **Generate Anki Cards**
+   - Click "Generate Anki Cards" button
+   - Processing may take 1-5 minutes depending on document size
+   - You can click "Stop Generation" to cancel if needed
+   - Cards will appear below when generation completes
+
+5. **Review Generated Cards**
+   - Expand each card to review the content
+   - Cards include mathematical expressions in MathJax format
+   - Tags are automatically added for organization
+
+6. **Download Results**
+   - **Markdown file**: Download the converted markdown (optional)
+   - **TSV file**: Download the Anki-ready TSV file
+
+7. **Import into Anki**
+   - Open Anki Desktop application
+   - Go to **File → Import**
+   - Select the downloaded TSV file
+   - Configure import settings:
+     - **Field separator**: Tab
+     - **Note type**: 
+       - For Basic: Choose "Basic" and map Field 1 → Front, Field 2 → Back
+       - For Cloze: Choose "Cloze" and map Field 1 → Text, Field 2 → Extra
+   - Click **Import**
+   - Your cards will appear in Anki!
+
+### Tips for Best Results
+
+- **Mathematical expressions**: Automatically converted to MathJax format (`\(...\)` for inline, `\[...\]` for display)
+- **Long documents**: Use chunking for better card quality
+- **Card count**: Start with 10-20 cards, then adjust based on results
+- **Content focus**: Use "definitions" for terminology-heavy documents, "concepts" for conceptual material
 
 ## Troubleshooting
 
-### "404 Client Error: Not Found for url: http://localhost:XXXX/convert"
+### Common Issues and Solutions
 
-This error means the Marker API server is not running or the URL is incorrect.
+#### Issue: "404 Client Error: Not Found for url: http://localhost:XXXX/convert"
 
-**Solution**:
-1. Make sure Marker API server is running (check the terminal where you started it)
-2. Verify the port number in the terminal output
-3. Update the "Marker API URL" in Streamlit sidebar to match the correct port
-4. Try accessing `http://localhost:XXXX/health` in your browser to verify the server is accessible
-
-### "Connection refused" or "Connection error"
+**Cause**: Marker API server is not running or URL is incorrect.
 
 **Solution**:
-1. Check if Marker API server is actually running
-2. Verify the server started successfully (look for "Application startup complete" message)
-3. Make sure you're using the correct port number
-4. On first startup, wait for models to load (this can take several minutes)
+1. Check if Marker API server is running in its terminal window
+2. Look for "Application startup complete" message
+3. Verify the port number in the terminal (e.g., `INFO: Uvicorn running on http://0.0.0.0:8000`)
+4. Update "Marker API URL" in Streamlit sidebar to match the port
+5. Test the server: Open `http://localhost:8000/health` in your browser (should show `{"status":"ok"}`)
 
-### Streamlit can't connect to Marker API
+#### Issue: "Connection refused" or "Connection error"
 
-**Solution**:
-1. Ensure Marker API server is running **before** starting Streamlit
-2. Check that both servers are running in separate terminals
-3. Verify the Marker API URL in Streamlit sidebar matches the server port
-4. Try restarting both servers
-
-### "No LLM configured. Set LLM_API_BASE for Llama or OPENAI_API_KEY for OpenAI."
-
-This error appears when trying to generate Anki cards without LLM configuration.
+**Cause**: Marker API server is not accessible.
 
 **Solution**:
-1. Create or edit `.env` file in the project root
-2. Choose one of the following options:
-   - **For OpenAI**: Add `OPENAI_API_KEY=your_api_key_here`
-   - **For Llama/OpenAI-compatible**: Add `LLM_API_BASE=http://your-llm-server:port` (and optionally `LLM_MODEL` and `LLM_API_KEY`)
-3. Restart Streamlit app after updating `.env`
+1. Make sure Marker API server is running (check the terminal)
+2. Wait for models to load on first startup (can take 5-10 minutes)
+3. Check firewall settings if using a different machine
+4. Verify you're using the correct port number
+5. Try restarting the Marker API server
 
-### "API Quota Exceeded" or Error code: 429
+#### Issue: Streamlit can't connect to Marker API
 
-This error means you have exceeded your OpenAI API quota or billing limit.
+**Cause**: Server startup order or configuration issue.
 
 **Solution**:
-1. Check your OpenAI account billing and usage: https://platform.openai.com/usage
-2. Verify your payment method is set up correctly: https://platform.openai.com/account/billing
-3. Consider upgrading your plan or adding credits if needed
-4. Wait for your quota to reset (usually monthly)
-5. Alternatively, use a local LLM server by setting `LLM_API_BASE` in `.env` to avoid API costs
+1. **Always start Marker API server FIRST**, then Streamlit
+2. Check both are running in separate terminal windows
+3. Verify Marker API URL in Streamlit sidebar matches the server port
+4. Restart both servers if needed
+5. Check for port conflicts (another application using port 8000)
+
+#### Issue: "No LLM configured. Set LLM_API_BASE for Llama or OPENAI_API_KEY for OpenAI."
+
+**Cause**: Missing or incorrect `.env` file configuration.
+
+**Solution**:
+1. Check that `.env` file exists in the project root directory
+2. Verify `.env` contains `OPENAI_API_KEY=sk-...` (with your actual key)
+3. Make sure there are no extra spaces or quotes around the API key
+4. Restart Streamlit after updating `.env`
+5. Check the sidebar shows "Using OpenAI (model: ...)" when configured correctly
+
+#### Issue: "API Quota Exceeded" or Error code: 429
+
+**Cause**: OpenAI API quota or billing limit reached.
+
+**Solution**:
+1. Check your OpenAI account usage: https://platform.openai.com/usage
+2. Verify payment method: https://platform.openai.com/account/billing
+3. Add credits or upgrade your plan if needed
+4. Wait for monthly quota reset
+5. Consider using a local LLM server (set `LLM_API_BASE` in `.env`) to avoid API costs
+
+#### Issue: "Model Not Found" error
+
+**Cause**: Invalid or unsupported model name.
+
+**Solution**:
+1. Check your `OPENAI_MODEL` setting in `.env`
+2. Use a valid model name: `gpt-4-turbo`, `gpt-5-mini`, `gpt-4o`
+3. Note: `gpt-4-turbo-preview` is deprecated
+4. Verify you have access to the model in your OpenAI account
+
+#### Issue: Cards not generating or empty results
+
+**Cause**: Various possible issues.
+
+**Solution**:
+1. Check that PDF conversion completed successfully
+2. Verify markdown content is visible in preview
+3. Try reducing the number of cards requested
+4. Check for error messages in the Streamlit interface
+5. Verify your API key is valid and has credits
+6. Try with a simpler PDF document first
+
+#### Issue: Mathematical expressions not rendering in Anki
+
+**Cause**: Anki not configured for MathJax.
+
+**Solution**:
+1. Cards are generated with MathJax format (`\(...\)` and `\[...\]`)
+2. Anki should render these automatically
+3. If not working, check Anki's MathJax settings
+4. Ensure you're using a recent version of Anki Desktop
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. Check the terminal output for both Marker API and Streamlit servers
+2. Review error messages in the Streamlit interface
+3. Verify all prerequisites are met (Python version, API keys, etc.)
+4. Check the [documentation](docs/) folder for detailed guides
 
 ## Project Structure
 
