@@ -59,8 +59,16 @@ def build_prompt(note_type: str, num_cards: int, content_focus: str, markdown_co
         "IMPORTANT:\n"
         f"- {instructions}\n"
         "- Do not include any other text, explanations, headings, or formatting.\n"
-        "- Ensure mathematical expressions are wrapped in $...$ for inline math or $$...$$ for display math.\n"
         "- Keep each item concise but informative.\n\n"
+        "MATHEMATICAL EXPRESSIONS (MathJax/LaTeX):\n"
+        "- Use MathJax format for all mathematical expressions in TSV fields.\n"
+        "- Inline math: \\( ... \\) for expressions within text (e.g., What is the gradient of \\(f(x)=x^2\\)?)\n"
+        "- Display math: \\[ ... \\] for centered equations on their own line (e.g., \\[\\frac{\\partial^2 u}{\\partial t^2}=c^2\\nabla^2 u\\])\n"
+        "- For cloze deletions with math, wrap the math inside the cloze: {{c1::\\(formula\\)}}\n"
+        "- Avoid literal tab characters inside formulas; use spaces instead.\n"
+        "- Use <br> for line breaks inside fields (HTML is allowed).\n"
+        "- If the source content uses [$]...[/$] format, convert to MathJax: [$]...[/$] → \\(...\\) (inline) or \\[...\\] (display)\n"
+        "- Complex environments like \\begin{aligned}...\\end{aligned} work in \\[...\\] blocks.\n\n"
         f"Content:\n{content}\n"
     )
 
