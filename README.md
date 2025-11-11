@@ -38,6 +38,24 @@ echo "OPENAI_API_KEY=your_api_key_here" > .env
 echo "MARKER_API_BASE=http://localhost:8000" >> .env
 ```
 
+**LLM Configuration**: The app requires either:
+- **OpenAI**: Set `OPENAI_API_KEY` in `.env` (uses GPT-4 by default)
+- **Llama/OpenAI-compatible**: Set `LLM_API_BASE` (and optionally `LLM_MODEL` and `LLM_API_KEY`) in `.env`
+
+Example `.env` for OpenAI:
+```
+OPENAI_API_KEY=sk-...
+MARKER_API_BASE=http://localhost:8000
+```
+
+Example `.env` for Llama:
+```
+LLM_API_BASE=http://localhost:8080
+LLM_MODEL=llama-3.1-8b-instruct
+LLM_API_KEY=no-key-required
+MARKER_API_BASE=http://localhost:8000
+```
+
 ### 3. Start Marker API Server
 
 **Important**: You need to run Marker API server in a **separate terminal** before starting Streamlit.
@@ -148,6 +166,17 @@ This error means the Marker API server is not running or the URL is incorrect.
 2. Check that both servers are running in separate terminals
 3. Verify the Marker API URL in Streamlit sidebar matches the server port
 4. Try restarting both servers
+
+### "No LLM configured. Set LLM_API_BASE for Llama or OPENAI_API_KEY for OpenAI."
+
+This error appears when trying to generate Anki cards without LLM configuration.
+
+**Solution**:
+1. Create or edit `.env` file in the project root
+2. Choose one of the following options:
+   - **For OpenAI**: Add `OPENAI_API_KEY=your_api_key_here`
+   - **For Llama/OpenAI-compatible**: Add `LLM_API_BASE=http://your-llm-server:port` (and optionally `LLM_MODEL` and `LLM_API_KEY`)
+3. Restart Streamlit app after updating `.env`
 
 ## Project Structure
 
