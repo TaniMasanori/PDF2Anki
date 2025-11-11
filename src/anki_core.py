@@ -49,13 +49,13 @@ def build_output_instructions(note_type: str, num_cards: int) -> str:
 def build_prompt(note_type: str, num_cards: int, content_focus: str, markdown_content: str) -> str:
     """
     Build the full user prompt for the chat completion request.
+    Note: System message should be set separately (e.g., "You are a helpful assistant that creates educational flashcards.")
     """
     focus = content_focus if content_focus and content_focus != "mixed" else "key concepts, definitions, and important details"
     instructions = build_output_instructions(note_type, num_cards)
     content = (markdown_content or "")[:4000]
     return (
-        "You are an assistant that creates Anki flashcards.\n\n"
-        f"Focus on {focus}.\n\n"
+        f"Create Anki flashcards from the following content. Focus on {focus}.\n\n"
         "IMPORTANT:\n"
         f"- {instructions}\n"
         "- Do not include any other text, explanations, headings, or formatting.\n"
@@ -110,7 +110,11 @@ def build_llm_prompt_script(md_path: str, num_cards: int, note_type: str, conten
     """
     Build a Bash script that calls an OpenAI-compatible endpoint to generate cards.
     """
-    prompt_header = build_prompt(note_type=note_type, num_cards=num_cards, content_focus=content_focus, markdown_content="")
+    # Build prompt header without content (remove trailing "Content:\n" line)
+    prompt_with_empty = build_prompt(note_type=note_type, num_cards=num_cards, content_focus=content_focus, markdown_content="")
+    # Remove the trailing "Content:\n" line since we'll add it in the script
+    prompt_header = prompt_with_empty.rstrip().rsplit("Content:", 1)[0].rstrip()
+    
     script = f"""#!/usr/bin/env bash
 set -euo pipefail
 
@@ -124,9 +128,11 @@ CONTENT=$(cat "$CONTENT_FILE")
 
 read -r -d '' PROMPT <<'EOF'
 {prompt_header}
+
+Content:
 EOF
 
-USER_INPUT="$PROMPT\n\nContent:\n$CONTENT"
+USER_INPUT="$PROMPT$CONTENT"
 
 DATA=$(jq -n --arg model "$LLM_MODEL" --arg sys "You are a helpful assistant that creates educational flashcards." --arg prompt "$USER_INPUT" '{{model:$model, messages:[{{"role":"system", "content":$sys}},{{"role":"user", "content":$prompt}}], temperature:0.2, max_tokens:2000}}')
 
