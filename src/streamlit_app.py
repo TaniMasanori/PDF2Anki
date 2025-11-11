@@ -65,6 +65,10 @@ if 'meta_path' not in st.session_state:
     st.session_state.meta_path = None
 if 'pdf_sha256' not in st.session_state:
     st.session_state.pdf_sha256 = None
+if 'cancel_generation' not in st.session_state:
+    st.session_state.cancel_generation = False
+if 'generating' not in st.session_state:
+    st.session_state.generating = False
 
 
 
@@ -254,6 +258,15 @@ def generate_anki_cards(
         for i, chunk in enumerate(chunking_result.chunks):
             if remaining_cards <= 0:
                 break
+            
+            # Check if generation was cancelled
+            if st.session_state.cancel_generation:
+                st.warning("Card generation cancelled by user.")
+                progress_bar.empty()
+                status_text.empty()
+                st.session_state.cancel_generation = False
+                st.session_state.generating = False
+                return all_cards[:num_cards] if all_cards else []
             
             status_text.text(f"Processing chunk {i+1}/{total_chunks}...")
             progress_bar.progress((i + 1) / total_chunks)
@@ -514,8 +527,24 @@ def main():
                     mime="text/x-shellscript"
                 )
             
-            # Generate cards button
-            if st.button("🎴 Generate Anki Cards", type="primary"):
+            # Generate cards button and stop button
+            col_gen, col_stop = st.columns([1, 1])
+            with col_gen:
+                generate_clicked = st.button("Generate Anki Cards", type="primary")
+            with col_stop:
+                stop_clicked = st.button("Stop Generation", disabled=not st.session_state.get('generating', False))
+            
+            if stop_clicked:
+                st.session_state.cancel_generation = True
+                st.session_state.generating = False
+                st.warning("Stopping card generation...")
+                st.rerun()
+            
+            if generate_clicked:
+                # Reset cancel flag and set generating flag
+                st.session_state.cancel_generation = False
+                st.session_state.generating = True
+                
                 with st.spinner(f"Generating {num_cards} Anki cards..."):
                     cards = generate_anki_cards(
                         st.session_state.markdown_content,
@@ -526,6 +555,9 @@ def main():
                         pdf_sha256=st.session_state.pdf_sha256,
                         max_tokens_per_chunk=max_tokens_per_chunk,
                     )
+                    
+                    # Reset generating flag
+                    st.session_state.generating = False
                     
                     if cards:
                         st.session_state.cards = cards
