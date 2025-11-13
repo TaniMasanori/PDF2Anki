@@ -25,6 +25,8 @@ import os
 from pathlib import Path
 import json
 import time
+from datetime import datetime
+import shutil
 from typing import List, Optional
 import openai
 from openai import APIError, RateLimitError, APIConnectionError, APITimeoutError
@@ -69,6 +71,8 @@ if 'cancel_generation' not in st.session_state:
     st.session_state.cancel_generation = False
 if 'generating' not in st.session_state:
     st.session_state.generating = False
+if 'session_output_dir' not in st.session_state:
+    st.session_state.session_output_dir = None
 
 
 
@@ -454,24 +458,44 @@ def main():
                             tmp_file.write(uploaded_file.read())
                             tmp_path = Path(tmp_file.name)
                         
-                        # Convert PDF to Markdown
-                        output_root = Path(tempfile.mkdtemp())
+                        # Create session output directory in outputs folder
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        pdf_name_safe = Path(uploaded_file.name).stem.replace(" ", "_")
+                        session_dir_name = f"{timestamp}_{pdf_name_safe}"
+                        outputs_root = Path("outputs")
+                        session_output_dir = outputs_root / session_dir_name
+                        session_output_dir.mkdir(parents=True, exist_ok=True)
+                        
+                        # Convert PDF to Markdown (using temporary directory first)
+                        temp_output_root = Path(tempfile.mkdtemp())
                         result = convert_pdf_to_markdown(
                             pdf_path=tmp_path,
                             api_base_url=marker_api_url,
-                            output_root=output_root
+                            output_root=temp_output_root
                         )
                         
+                        # Copy conversion results to session output directory
+                        final_markdown_path = session_output_dir / "converted.md"
+                        final_meta_path = session_output_dir / "meta.json"
+                        
+                        shutil.copy2(result.markdown_path, final_markdown_path)
+                        shutil.copy2(result.meta_path, final_meta_path)
+                        
+                        # Copy images directory if it exists
+                        if result.images_dir and Path(result.images_dir).exists():
+                            images_dest = session_output_dir / "images"
+                            shutil.copytree(result.images_dir, images_dest, dirs_exist_ok=True)
+                        
                         # Read the markdown content
-                        with open(result.markdown_path, 'r', encoding='utf-8') as f:
+                        with open(final_markdown_path, 'r', encoding='utf-8') as f:
                             markdown_content = f.read()
                         
                         # Load PDF SHA256 from metadata
-                        pdf_sha256 = load_pdf_sha256_from_meta(result.meta_path)
+                        pdf_sha256 = load_pdf_sha256_from_meta(final_meta_path)
                         if not pdf_sha256:
                             # Try to extract from meta.json directly
                             try:
-                                with open(result.meta_path, 'r', encoding='utf-8') as meta_file:
+                                with open(final_meta_path, 'r', encoding='utf-8') as meta_file:
                                     meta_data = json.load(meta_file)
                                     pdf_sha256 = meta_data.get("source_sha256")
                             except Exception:
@@ -479,17 +503,20 @@ def main():
                         
                         # Store in session state
                         st.session_state.markdown_content = markdown_content
-                        st.session_state.markdown_path = result.markdown_path
-                        st.session_state.meta_path = result.meta_path
+                        st.session_state.markdown_path = str(final_markdown_path)
+                        st.session_state.meta_path = str(final_meta_path)
                         st.session_state.pdf_sha256 = pdf_sha256
+                        st.session_state.session_output_dir = session_output_dir
                         st.session_state.conversion_done = True
                         
-                        # Clean up temp PDF
+                        # Clean up temp PDF and temp output directory
                         os.unlink(tmp_path)
+                        shutil.rmtree(temp_output_root, ignore_errors=True)
                         
                         st.success("✅ PDF converted successfully!")
                         if pdf_sha256:
                             st.info(f"PDF SHA256: {pdf_sha256[:16]}...")
+                        st.info(f"Results saved to: {session_output_dir}")
                         
                     except Exception as e:
                         st.error(f"❌ Error converting PDF: {str(e)}")
@@ -566,7 +593,28 @@ def main():
                             tsv_lines.append(card.to_tsv_row())
                         st.session_state.tsv_content = "\n".join(tsv_lines)
                         
+                        # Save TSV file to session output directory
+                        if st.session_state.session_output_dir:
+                            tsv_path = st.session_state.session_output_dir / "anki_cards.tsv"
+                            with open(tsv_path, 'w', encoding='utf-8') as f:
+                                f.write(st.session_state.tsv_content)
+                        
+                        # Generate and save prompt script to session output directory
+                        if st.session_state.session_output_dir and st.session_state.markdown_path:
+                            script_text = build_llm_prompt_script(
+                                md_path=str(st.session_state.markdown_path),
+                                num_cards=num_cards,
+                                note_type=note_type,
+                                content_focus=card_type,
+                            )
+                            prompt_script_path = st.session_state.session_output_dir / "prompt_script.sh"
+                            with open(prompt_script_path, 'w', encoding='utf-8') as f:
+                                f.write(script_text)
+                            os.chmod(prompt_script_path, 0o755)  # Make executable
+                        
                         st.success(f"✅ Generated {len(cards)} cards successfully!")
+                        if st.session_state.session_output_dir:
+                            st.info(f"Files saved to: {st.session_state.session_output_dir}")
                     else:
                         st.error("❌ Failed to generate cards")
             
