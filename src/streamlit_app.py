@@ -27,6 +27,7 @@ import json
 import time
 from datetime import datetime
 import shutil
+import hashlib
 from typing import List, Optional
 import openai
 from openai import APIError, RateLimitError, APIConnectionError, APITimeoutError
@@ -73,6 +74,8 @@ if 'generating' not in st.session_state:
     st.session_state.generating = False
 if 'converting' not in st.session_state:
     st.session_state.converting = False
+if 'converting_pdf_hash' not in st.session_state:
+    st.session_state.converting_pdf_hash = None
 if 'session_output_dir' not in st.session_state:
     st.session_state.session_output_dir = None
 
@@ -452,18 +455,36 @@ def main():
             st.json(file_details)
             
             # Convert button
+            # Compute PDF hash to prevent duplicate conversions
+            uploaded_file.seek(0)  # Reset file pointer
+            pdf_content = uploaded_file.read()
+            pdf_hash = hashlib.sha256(pdf_content).hexdigest()
+            uploaded_file.seek(0)  # Reset again for later use
+            
+            # Check if this PDF is already being converted
+            is_same_pdf_converting = (
+                st.session_state.get('converting', False) and 
+                st.session_state.get('converting_pdf_hash') == pdf_hash
+            )
+            
             convert_button_disabled = st.session_state.get('converting', False)
             if st.button("🔄 Convert to Markdown", type="primary", disabled=convert_button_disabled):
+                if is_same_pdf_converting:
+                    st.warning("⚠️ This PDF is already being converted. Please wait for the current conversion to complete.")
+                    st.stop()
+                
                 if st.session_state.get('converting', False):
-                    st.warning("Conversion already in progress. Please wait...")
+                    st.warning("⚠️ Another PDF conversion is in progress. Please wait...")
                     st.stop()
                 
                 st.session_state.converting = True
+                st.session_state.converting_pdf_hash = pdf_hash
+                
                 with st.spinner("Converting PDF to Markdown..."):
                     try:
                         # Save uploaded file temporarily
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                            tmp_file.write(uploaded_file.read())
+                            tmp_file.write(pdf_content)
                             tmp_path = Path(tmp_file.name)
                         
                         # Create session output directory in outputs folder
@@ -531,6 +552,7 @@ def main():
                         st.session_state.conversion_done = False
                     finally:
                         st.session_state.converting = False
+                        st.session_state.converting_pdf_hash = None
     
     with col2:
         st.header("📝 Results")
