@@ -510,10 +510,8 @@ def main():
                         shutil.copy2(result.markdown_path, final_markdown_path)
                         shutil.copy2(result.meta_path, final_meta_path)
                         
-                        # Copy images directory if it exists
-                        if result.images_dir and Path(result.images_dir).exists():
-                            images_dest = session_output_dir / "images"
-                            shutil.copytree(result.images_dir, images_dest, dirs_exist_ok=True)
+                        # Note: Images are embedded in markdown as base64 data
+                        # If needed, images can be extracted from the API response separately
                         
                         # Read the markdown content
                         with open(final_markdown_path, 'r', encoding='utf-8') as f:
