@@ -71,6 +71,8 @@ if 'cancel_generation' not in st.session_state:
     st.session_state.cancel_generation = False
 if 'generating' not in st.session_state:
     st.session_state.generating = False
+if 'converting' not in st.session_state:
+    st.session_state.converting = False
 if 'session_output_dir' not in st.session_state:
     st.session_state.session_output_dir = None
 
@@ -450,7 +452,13 @@ def main():
             st.json(file_details)
             
             # Convert button
-            if st.button("🔄 Convert to Markdown", type="primary"):
+            convert_button_disabled = st.session_state.get('converting', False)
+            if st.button("🔄 Convert to Markdown", type="primary", disabled=convert_button_disabled):
+                if st.session_state.get('converting', False):
+                    st.warning("Conversion already in progress. Please wait...")
+                    st.stop()
+                
+                st.session_state.converting = True
                 with st.spinner("Converting PDF to Markdown..."):
                     try:
                         # Save uploaded file temporarily
@@ -521,6 +529,8 @@ def main():
                     except Exception as e:
                         st.error(f"❌ Error converting PDF: {str(e)}")
                         st.session_state.conversion_done = False
+                    finally:
+                        st.session_state.converting = False
     
     with col2:
         st.header("📝 Results")
