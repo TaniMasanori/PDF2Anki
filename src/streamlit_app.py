@@ -551,6 +551,65 @@ def main():
                     finally:
                         st.session_state.converting = False
                         st.session_state.converting_pdf_hash = None
+
+        st.divider()
+        st.subheader("Upload Markdown (skip PDF conversion)")
+        uploaded_md = st.file_uploader(
+            "Choose a Markdown file",
+            type=["md", "markdown"],
+            help="If you already have a markdown file, upload it to skip PDF conversion.",
+            key="markdown_uploader"
+        )
+        if uploaded_md is not None:
+            try:
+                md_bytes = uploaded_md.read()
+                # Decode as UTF-8 with replacement to avoid hard failures
+                markdown_text = md_bytes.decode("utf-8", errors="replace")
+                
+                # Prepare session output directory
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                md_name_safe = Path(uploaded_md.name).stem.replace(" ", "_")
+                session_dir_name = f"{timestamp}_{md_name_safe}"
+                outputs_root = Path("outputs")
+                session_output_dir = outputs_root / session_dir_name
+                session_output_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Save markdown to standardized filename to align with downstream logic
+                final_markdown_path = session_output_dir / "converted.md"
+                with open(final_markdown_path, "w", encoding="utf-8") as f:
+                    f.write(markdown_text)
+                
+                # Optionally write minimal meta to aid reproducibility (no PDF hash available)
+                final_meta_path = session_output_dir / "meta.json"
+                try:
+                    with open(final_meta_path, "w", encoding="utf-8") as meta_f:
+                        json.dump(
+                            {
+                                "source_type": "markdown",
+                                "original_filename": uploaded_md.name,
+                                "created_at": timestamp,
+                                "source_sha256": None
+                            },
+                            meta_f,
+                            ensure_ascii=False,
+                            indent=2
+                        )
+                except Exception:
+                    # If meta write fails, continue without blocking the main flow
+                    final_meta_path = None
+                
+                # Store in session state
+                st.session_state.markdown_content = markdown_text
+                st.session_state.markdown_path = str(final_markdown_path)
+                st.session_state.meta_path = str(final_meta_path) if final_meta_path else None
+                st.session_state.pdf_sha256 = None  # Unknown for uploaded markdown
+                st.session_state.session_output_dir = session_output_dir
+                st.session_state.conversion_done = True
+                
+                st.success("✅ Markdown loaded successfully!")
+                st.info(f"Results saved to: {session_output_dir}")
+            except Exception as e:
+                st.error(f"❌ Error loading Markdown: {str(e)}")
     
     with col2:
         st.header("📝 Results")
@@ -673,19 +732,28 @@ def main():
         
         with col1:
             if st.session_state.markdown_content:
+                # Prefer original PDF-derived names when available, otherwise fall back
+                if uploaded_file is not None:
+                    md_download_name = f"converted_{uploaded_file.name.replace('.pdf', '.md')}"
+                else:
+                    md_download_name = "converted.md"
                 st.download_button(
                     label="📄 Download Markdown",
                     data=st.session_state.markdown_content,
-                    file_name=f"converted_{uploaded_file.name.replace('.pdf', '.md')}",
+                    file_name=md_download_name,
                     mime="text/markdown"
                 )
         
         with col2:
             if st.session_state.tsv_content:
+                if uploaded_file is not None:
+                    tsv_download_name = f"anki_cards_{uploaded_file.name.replace('.pdf', '.tsv')}"
+                else:
+                    tsv_download_name = "anki_cards.tsv"
                 st.download_button(
                     label="📊 Download TSV for Anki",
                     data=st.session_state.tsv_content,
-                    file_name=f"anki_cards_{uploaded_file.name.replace('.pdf', '.tsv')}",
+                    file_name=tsv_download_name,
                     mime="text/tab-separated-values"
                 )
     
@@ -694,6 +762,7 @@ def main():
         st.markdown("""
         1. **Upload a PDF**: Click the file uploader and select your PDF document
         2. **Convert to Markdown**: Click the "Convert to Markdown" button
+        3. **Or upload an existing Markdown**: Use the "Upload Markdown" uploader to skip the PDF conversion
         3. **Generate Cards**: Once converted, click "Generate Anki Cards"
         4. **Download Results**: Download the Markdown file and/or TSV file
         5. **Import to Anki**:
