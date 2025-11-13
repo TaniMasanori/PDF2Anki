@@ -407,6 +407,52 @@ PDF2Anki/
 └── run_streamlit.sh        # Startup script
 ```
 
+## Architecture Flowchart
+
+```mermaid
+flowchart TD
+    U[User (Browser/Streamlit UI)] -->|Upload PDF| A[streamlit_app.py\nUpload handling]
+    A --> B[Compute SHA256 and create session dir\noutputs/<timestamp>_<pdf_name>/]
+    A -->|Click Convert to Markdown| C[marker_client.convert_pdf_to_markdown]
+    
+    subgraph Marker API Service
+        MAPI[/POST /convert/]
+    end
+    C -->|Send PDF| MAPI
+    MAPI -->|Receive markdown, meta| D[Save marker.md, meta.json\n(temp conv_dir)]
+    D --> E[Copy to session output:\nconverted.md, meta.json]
+    E --> F[Show Markdown preview]
+    
+    F -->|Generate Anki Cards| G[Select LLM config\n(LLM_API_BASE or OPENAI)]
+    G --> H{Use intelligent chunking?}
+    
+    subgraph Chunking Path
+        direction TB
+        I[markdown_processor_wrapper\n.clean_markdown] --> J[.chunk_markdown\n(max_tokens)]
+        J --> K[semantic_detector:\ndefinitions/key terms/concept boundaries]
+        K --> L[anki_core.build_prompt\n(chunk + semantics)]
+        L --> LL[LLM call\nopenai.chat.completions.create]
+        LL --> LM[anki_core.parse_cards_from_output\n→ Cards]
+    end
+    
+    subgraph Non-chunking Path
+        direction TB
+        N[anki_core.build_prompt\n(full text)] --> NL[LLM call]
+        NL --> NM[parse_cards_from_output\n→ Cards]
+    end
+    
+    H -- yes --> I
+    H -- no --> N
+    
+    I & J & K & L & LL & LM --> O[Aggregate cards]
+    N & NL & NM --> O
+    O --> P[Generate TSV\noutputs/<session>/anki_cards.tsv]
+    P --> Q[Download buttons\n(Markdown / TSV)]
+    Q --> R[Import into Anki]
+```
+
+See also: `docs/20251113_pdf2anki_flowchart.md` for the Japanese-annotated version.
+
 ## Documentation
 
 - [Streamlit Interface Guide](docs/streamlit_interface_guide.md)
