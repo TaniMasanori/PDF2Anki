@@ -231,8 +231,8 @@ def generate_anki_cards(
             st.error("No LLM configured. Set LLM_API_BASE (for Llama) or OPENAI_API_KEY.")
             return []
         openai.api_key = api_key
-        # Use OPENAI_MODEL env var if set, otherwise default to gpt-5-mini
-        model_name = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+        # Use OPENAI_MODEL env var if set, otherwise default to gpt-5
+        model_name = os.getenv("OPENAI_MODEL", "gpt-5")
     
     # Use chunking-based approach if enabled
     if use_chunking:
@@ -425,7 +425,7 @@ def main():
         if llm_base:
             st.info(f"Using OpenAI-compatible endpoint: {llm_base} (model: {llm_model})")
         elif os.getenv("OPENAI_API_KEY"):
-            openai_model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+            openai_model = os.getenv("OPENAI_MODEL", "gpt-5")
             st.success(f"Using OpenAI (model: {openai_model})")
         else:
             st.warning("No LLM configured. Set LLM_API_BASE for Llama or OPENAI_API_KEY for OpenAI.")
