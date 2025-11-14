@@ -80,10 +80,7 @@ MARKER_API_BASE=http://localhost:8000
 5. Copy the key and paste it in your `.env` file
 
 **Available OpenAI models**:
-- `gpt-4-turbo` (default, recommended)
 - `gpt-5-mini` (cost-effective)
-- `gpt-4o` (latest)
-- Note: `gpt-4-turbo-preview` is deprecated
 
 #### Option B: Using Local LLM (Advanced)
 
@@ -138,6 +135,8 @@ pip install -e .
 
 **Important**: Keep this terminal window open while using PDF2Anki.
 
+**Option A: Standard startup (recommended for first-time users)**
+
 ```bash
 # Make sure you're in the marker-api directory
 cd marker-api
@@ -146,8 +145,27 @@ cd marker-api
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Start the server
-python server.py --host 0.0.0.0 --port 8000
+python server.py --host 0.0.0.0 --port 8888
 ```
+
+**Option B: Optimized startup (for faster conversion)**
+
+If you want to speed up PDF conversion, use the optimized startup script:
+
+```bash
+# Make sure you're in the marker-api directory
+cd marker-api
+
+# Use the optimized startup script (automatically detects GPU and optimizes settings)
+./run_optimized.sh
+```
+
+The optimized script will:
+- Automatically detect and enable GPU if available
+- Set optimal memory settings based on your hardware
+- Provide better performance for PDF conversion
+
+**For more optimization options**, see [PDF Conversion Optimization Guide](docs/20251113_pdf_conversion_optimization.md).
 
 **What to expect**:
 - First startup will download models (this can take 5-10 minutes)
@@ -155,14 +173,14 @@ python server.py --host 0.0.0.0 --port 8000
 - The server will keep running until you stop it (Ctrl+C)
 
 **Verify the server is running**:
-1. Open your browser and go to: `http://localhost:8000/health`
+1. Open your browser and go to: `http://localhost:8888/health`
 2. You should see `{"status":"ok"}` or similar
-3. API documentation: `http://localhost:8000/docs`
-4. Optional Gradio UI: `http://localhost:8000/gradio`
+3. API documentation: `http://localhost:8888/docs`
+4. Optional Gradio UI: `http://localhost:8888/gradio`
 
 **Troubleshooting**:
-- If port 8000 is in use, change the port: `python server.py --host 0.0.0.0 --port 8888`
 - Update `MARKER_API_BASE` in your `.env` file to match the port you're using
+- For performance issues, see the [optimization guide](docs/20251113_pdf_conversion_optimization.md)
 
 ### Step 5: Launch Streamlit Web Interface
 
@@ -389,11 +407,58 @@ PDF2Anki/
 └── run_streamlit.sh        # Startup script
 ```
 
+## Architecture Flowchart
+
+```mermaid
+flowchart TD
+    U[User (Browser/Streamlit UI)] -->|Upload PDF| A[streamlit_app.py\nUpload handling]
+    A --> B[Compute SHA256 and create session dir\noutputs/<timestamp>_<pdf_name>/]
+    A -->|Click Convert to Markdown| C[marker_client.convert_pdf_to_markdown]
+    
+    subgraph Marker API Service
+        MAPI[/POST /convert/]
+    end
+    C -->|Send PDF| MAPI
+    MAPI -->|Receive markdown, meta| D[Save marker.md, meta.json\n(temp conv_dir)]
+    D --> E[Copy to session output:\nconverted.md, meta.json]
+    E --> F[Show Markdown preview]
+    
+    F -->|Generate Anki Cards| G[Select LLM config\n(LLM_API_BASE or OPENAI)]
+    G --> H{Use intelligent chunking?}
+    
+    subgraph Chunking Path
+        direction TB
+        I[markdown_processor_wrapper\n.clean_markdown] --> J[.chunk_markdown\n(max_tokens)]
+        J --> K[semantic_detector:\ndefinitions/key terms/concept boundaries]
+        K --> L[anki_core.build_prompt\n(chunk + semantics)]
+        L --> LL[LLM call\nopenai.chat.completions.create]
+        LL --> LM[anki_core.parse_cards_from_output\n→ Cards]
+    end
+    
+    subgraph Non-chunking Path
+        direction TB
+        N[anki_core.build_prompt\n(full text)] --> NL[LLM call]
+        NL --> NM[parse_cards_from_output\n→ Cards]
+    end
+    
+    H -- yes --> I
+    H -- no --> N
+    
+    I & J & K & L & LL & LM --> O[Aggregate cards]
+    N & NL & NM --> O
+    O --> P[Generate TSV\noutputs/<session>/anki_cards.tsv]
+    P --> Q[Download buttons\n(Markdown / TSV)]
+    Q --> R[Import into Anki]
+```
+
+See also: `docs/20251113_pdf2anki_flowchart.md` for the Japanese-annotated version.
+
 ## Documentation
 
 - [Streamlit Interface Guide](docs/streamlit_interface_guide.md)
 - [Environment Setup](docs/env_setup.md)
 - [Marker API Setup (JP)](docs/20251104_marker_api_setup.md)
+- [PDF Conversion Optimization Guide](docs/20251113_pdf_conversion_optimization.md) - Speed up PDF conversion
 - [Project Plan](Project_plan.md)
 
 ## Development
