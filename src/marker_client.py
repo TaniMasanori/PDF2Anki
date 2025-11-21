@@ -1,3 +1,22 @@
+"""
+PDF to Markdown conversion client using Marker API.
+
+Copyright (C) 2025  Masanori Tani
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import hashlib
 import json
 import logging
@@ -75,7 +94,7 @@ def convert_pdf_to_markdown(
         try:
             with pdf_path.open('rb') as f:
                 files = {"file": (pdf_path.name, f, "application/pdf")}
-                headers = {"Accept": "text/markdown"}
+                headers = {"Accept": "application/json"}
                 
                 logger.info(f"Sending request to {url} (attempt {retry_count + 1}/{max_retries + 1})")
                 response = requests.post(
@@ -131,8 +150,19 @@ def convert_pdf_to_markdown(
                 logger.error(f"Max retries exceeded. Error log saved to {error_path}")
                 raise
 
-    # Assume API returns raw markdown text; adapt if API returns JSON/zip
-    markdown_text = response.text
+    # API returns JSON with structure: {"status": "Success", "result": {"markdown": "...", ...}}
+    try:
+        response_json = response.json()
+        if response_json.get("status") == "Success" and "result" in response_json:
+            markdown_text = response_json["result"].get("markdown", "")
+        else:
+            # Fallback: try to use response text directly
+            markdown_text = response.text
+            logger.warning(f"Unexpected API response format: {response_json}")
+    except (json.JSONDecodeError, KeyError) as e:
+        # Fallback: use response text if JSON parsing fails
+        logger.warning(f"Failed to parse JSON response: {e}. Using response text.")
+        markdown_text = response.text
 
     markdown_path = conv_dir / "marker.md"
     markdown_path.write_text(markdown_text, encoding="utf-8")

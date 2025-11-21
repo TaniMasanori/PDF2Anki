@@ -117,13 +117,17 @@ class Card:
     An Anki flashcard generated from PDF content.
     
     Attributes:
-        question: The front of the flashcard (question/prompt)
-        answer: The back of the flashcard (answer/explanation)
+        question: The front of the flashcard. For Cloze, this contains the cloze text with {{cN::...}}.
+        answer: The back of the flashcard (Basic). For Cloze, prefer using `extra` and keep `answer` empty.
+        note_type: "basic" or "cloze" (controls TSV export layout)
+        extra: Optional extra/back side for Cloze note type
         tags: Optional list of tags for organizing cards in Anki
         source_ref: Optional reference to source PDF and chunk
     """
     question: str
     answer: str
+    note_type: str = "basic"  # "basic" | "cloze"
+    extra: Optional[str] = None
     tags: List[str] = field(default_factory=list)
     source_ref: Optional[SourceReference] = None
     
@@ -132,9 +136,13 @@ class Card:
         Convert card to TSV format for Anki import.
         
         Returns:
-            Tab-separated string: question, answer, tags (semicolon-separated)
+            For Basic: question, answer, tags (semicolon-separated)
+            For Cloze: text(with cloze), extra, tags (semicolon-separated)
         """
         tags_str = ';'.join(self.tags) if self.tags else ''
+        if (self.note_type or "basic").lower() == "cloze":
+            extra_field = self.extra if self.extra is not None else (self.answer or "")
+            return f"{self.question}\t{extra_field}\t{tags_str}"
         return f"{self.question}\t{self.answer}\t{tags_str}"
 
 
@@ -166,4 +174,5 @@ class ChunkingResult:
     chunks: List[Chunk]
     total_chunks: int
     total_tokens: int
+
 
