@@ -57,8 +57,8 @@ def convert_pdf_to_markdown(
     pdf_path: Path,
     api_base_url: str,
     output_root: Path,
-    timeout_seconds: int = 120,
-    api_convert_path: str = "/convert",
+    timeout_seconds: int = 300,
+    api_convert_path: str = "/marker/upload",
     max_retries: int = 3,
 ) -> ConversionResultPaths:
     """
@@ -67,7 +67,7 @@ def convert_pdf_to_markdown(
     - pdf_path: input PDF file path
     - api_base_url: e.g. "http://localhost:8000"
     - output_root: base directory to store conversion artifacts
-    - api_convert_path: endpoint path (default: /convert)
+    - api_convert_path: endpoint path (default: /marker/upload)
     - max_retries: maximum number of retry attempts for 429/5xx errors
     """
     pdf_path = pdf_path.resolve()
@@ -150,10 +150,14 @@ def convert_pdf_to_markdown(
                 logger.error(f"Max retries exceeded. Error log saved to {error_path}")
                 raise
 
-    # API returns JSON with structure: {"status": "Success", "result": {"markdown": "...", ...}}
+    # API returns JSON with structure: {"output": "...", "success": True, ...}
     try:
         response_json = response.json()
-        if response_json.get("status") == "Success" and "result" in response_json:
+        # Check for new API format (v1)
+        if response_json.get("success") is True and "output" in response_json:
+            markdown_text = response_json["output"]
+        # Check for old API format
+        elif response_json.get("status") == "Success" and "result" in response_json:
             markdown_text = response_json["result"].get("markdown", "")
         else:
             # Fallback: try to use response text directly
