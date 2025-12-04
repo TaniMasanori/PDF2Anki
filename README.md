@@ -68,7 +68,7 @@ Edit the `.env` file with your preferred text editor and add the following:
 
 ```bash
 OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_MODEL=gpt-4-turbo
+OPENAI_MODEL=gpt-5-mini
 MARKER_API_BASE=http://localhost:8000
 ```
 
@@ -114,19 +114,22 @@ cd marker-api
 
 ```bash
 # Create virtual environment for Marker API
-python3 -m venv .venv
+python3 -m venv venv
 
 # Activate virtual environment
 # On Linux/Mac:
-source .venv/bin/activate
+source venv/bin/activate
 # On Windows:
-# .venv\Scripts\activate
+# venv\Scripts\activate
 
 # Upgrade pip
 python -m pip install -U pip
 
 # Install Marker API
 pip install -e .
+
+# Install server dependencies
+pip install fastapi uvicorn python-multipart starlette
 ```
 
 **Note**: Marker API requires Python 3.10 or higher. Installation may take several minutes as it downloads models.
@@ -142,10 +145,10 @@ pip install -e .
 cd marker-api
 
 # Activate virtual environment (if not already activated)
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Start the server
-python server.py --host 0.0.0.0 --port 8888
+python marker_server.py --host 0.0.0.0 --port 8888
 ```
 
 **Option B: Optimized startup (for faster conversion)**

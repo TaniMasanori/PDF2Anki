@@ -489,7 +489,8 @@ def main():
                         
                         # Create session output directory in outputs folder
                         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        pdf_name_safe = Path(uploaded_file.name).stem.replace(" ", "_")
+                        # Truncate filename to avoid filesystem length limits (especially on encrypted FS)
+                        pdf_name_safe = Path(uploaded_file.name).stem.replace(" ", "_")[:50]
                         session_dir_name = f"{timestamp}_{pdf_name_safe}"
                         outputs_root = Path("outputs")
                         session_output_dir = outputs_root / session_dir_name
@@ -568,7 +569,8 @@ def main():
                 
                 # Prepare session output directory
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                md_name_safe = Path(uploaded_md.name).stem.replace(" ", "_")
+                # Truncate filename to avoid filesystem length limits
+                md_name_safe = Path(uploaded_md.name).stem.replace(" ", "_")[:50]
                 session_dir_name = f"{timestamp}_{md_name_safe}"
                 outputs_root = Path("outputs")
                 session_output_dir = outputs_root / session_dir_name

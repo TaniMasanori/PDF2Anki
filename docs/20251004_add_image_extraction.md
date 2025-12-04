@@ -162,3 +162,7 @@ outputs/
 - `rendered.images` は `dict[str, PIL.Image.Image]` 形式
 - PIL (Pillow) を使用した画像保存
 
+
+
+
+

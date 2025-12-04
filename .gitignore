@@ -27,6 +27,7 @@ node_modules/
 # Local caches
 data/
 outputs/
+output_md/
 cache/
 tmp/
 temp/
