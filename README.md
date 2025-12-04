@@ -71,8 +71,8 @@ Edit the `.env` file with your preferred text editor and add the following:
 
 ```bash
 OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_MODEL=gpt-5-mini
-MARKER_API_BASE=http://localhost:8000
+OPENAI_MODEL=gpt-4o-mini
+MARKER_API_BASE=http://localhost:8080
 ```
 
 **Getting your OpenAI API key**:
@@ -83,17 +83,19 @@ MARKER_API_BASE=http://localhost:8000
 5. Copy the key and paste it in your `.env` file
 
 **Available OpenAI models**:
-- `gpt-5-mini` (cost-effective)
+- `gpt-4o-mini` (cost-effective, recommended)
+- `gpt-4o` (more powerful)
+- `gpt-4-turbo` (legacy)
 
 #### Option B: Using Local LLM (Advanced)
 
 If you have a local LLM server running (e.g., llama.cpp, vLLM, LM Studio):
 
 ```bash
-LLM_API_BASE=http://localhost:8080/v1
+LLM_API_BASE=http://localhost:8081/v1
 LLM_MODEL=llama-3.1-8b-instruct
 LLM_API_KEY=no-key-required
-MARKER_API_BASE=http://localhost:8000
+MARKER_API_BASE=http://localhost:8080
 ```
 
 **Important**: Make sure `.env` is in `.gitignore` (it should be by default) to keep your API keys secure.
@@ -128,6 +130,27 @@ git commit -m "chore: bump marker-api submodule"
 
 #### 4.2 Install Marker API Dependencies
 
+**Option A: Using Conda (Recommended)**
+
+If you're using Conda (recommended for better dependency management):
+
+```bash
+# Create conda environment (if not already created in Step 2)
+conda create -n pdf2anki python=3.11 -y
+conda activate pdf2anki
+
+# Navigate to marker-api directory
+cd marker-api
+
+# Install Marker API and all dependencies
+pip install -e .
+
+# Fix transformers version compatibility (Important!)
+pip install transformers==4.41.0
+```
+
+**Option B: Using venv**
+
 ```bash
 # Create virtual environment for Marker API
 python3 -m venv venv
@@ -144,11 +167,14 @@ python -m pip install -U pip
 # Install Marker API
 pip install -e .
 
-# Install server dependencies
-pip install fastapi uvicorn python-multipart starlette
+# Fix transformers version compatibility (Important!)
+pip install transformers==4.41.0
 ```
 
-**Note**: Marker API requires Python 3.10 or higher. Installation may take several minutes as it downloads models.
+**Note**: 
+- Marker API requires Python 3.10 or higher
+- Installation may take several minutes as it downloads large packages (PyTorch, etc.)
+- The transformers version fix is required to avoid `KeyError: 'sdpa'` error
 
 #### 4.3 Start Marker API Server
 
@@ -160,11 +186,14 @@ pip install fastapi uvicorn python-multipart starlette
 # Make sure you're in the marker-api directory
 cd marker-api
 
-# Activate virtual environment (if not already activated)
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Activate environment
+# For Conda:
+conda activate pdf2anki
+# For venv:
+# source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Start the server
-python marker_server.py --host 0.0.0.0 --port 8888
+# Start the server (default port is 8080)
+python server.py --host 0.0.0.0 --port 8080
 ```
 
 **Option B: Optimized startup (for faster conversion)**
@@ -192,13 +221,14 @@ The optimized script will:
 - The server will keep running until you stop it (Ctrl+C)
 
 **Verify the server is running**:
-1. Open your browser and go to: `http://localhost:8888/health`
-2. You should see `{"status":"ok"}` or similar
-3. API documentation: `http://localhost:8888/docs`
-4. Optional Gradio UI: `http://localhost:8888/gradio`
+1. Open your browser and go to: `http://localhost:8080/health`
+2. You should see `{"message":"Welcome to Marker-api","type":"simple"}` or similar
+3. API documentation: `http://localhost:8080/docs`
+4. Optional Gradio UI: `http://localhost:8080/` (root path)
 
 **Troubleshooting**:
 - Update `MARKER_API_BASE` in your `.env` file to match the port you're using
+- If you see `KeyError: 'sdpa'` error, run: `pip install transformers==4.41.0`
 - For performance issues, see the [optimization guide](docs/20251113_pdf_conversion_optimization.md)
 
 ### Step 5: Launch Streamlit Web Interface
@@ -211,11 +241,11 @@ Open a **new terminal window** (keep the Marker API server terminal open) and ru
 # Navigate to project root
 cd PDF2Anki
 
-# Activate virtual environment
-# On Linux/Mac:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
+# Activate environment
+# For Conda:
+conda activate pdf2anki
+# For venv:
+# source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Start Streamlit app
 streamlit run src/streamlit_app.py
@@ -236,14 +266,14 @@ When the Streamlit app opens:
 
 1. **Check the left sidebar** - you'll see "Settings" section
 2. **Marker API URL**: Verify it matches your Marker API server port
-   - Default: `http://localhost:8000`
+   - Default: `http://localhost:8080`
    - If you changed the port, update this field
 3. **LLM API**: Check that your LLM configuration is detected
-   - Should show "Using OpenAI (model: gpt-4-turbo)" or similar
+   - Should show "Using OpenAI (model: gpt-4o-mini)" or similar
    - If not, verify your `.env` file is correct and restart Streamlit
 
 **Quick verification**:
-- Check the terminal where Marker API is running - it should show: `INFO: Uvicorn running on http://0.0.0.0:8000`
+- Check the terminal where Marker API is running - it should show: `INFO: Uvicorn running on http://0.0.0.0:8080`
 - The port number in Streamlit must match this port
 
 ## Usage Guide
@@ -322,9 +352,9 @@ Before using the app, verify:
 **Solution**:
 1. Check if Marker API server is running in its terminal window
 2. Look for "Application startup complete" message
-3. Verify the port number in the terminal (e.g., `INFO: Uvicorn running on http://0.0.0.0:8000`)
+3. Verify the port number in the terminal (e.g., `INFO: Uvicorn running on http://0.0.0.0:8080`)
 4. Update "Marker API URL" in Streamlit sidebar to match the port
-5. Test the server: Open `http://localhost:8000/health` in your browser (should show `{"status":"ok"}`)
+5. Test the server: Open `http://localhost:8080/health` in your browser
 
 #### Issue: "Connection refused" or "Connection error"
 
@@ -346,7 +376,7 @@ Before using the app, verify:
 2. Check both are running in separate terminal windows
 3. Verify Marker API URL in Streamlit sidebar matches the server port
 4. Restart both servers if needed
-5. Check for port conflicts (another application using port 8000)
+5. Check for port conflicts (another application using port 8080)
 
 #### Issue: "No LLM configured. Set LLM_API_BASE for Llama or OPENAI_API_KEY for OpenAI."
 
@@ -376,7 +406,7 @@ Before using the app, verify:
 
 **Solution**:
 1. Check your `OPENAI_MODEL` setting in `.env`
-2. Use a valid model name: `gpt-4-turbo`, `gpt-5-mini`, `gpt-4o`
+2. Use a valid model name: `gpt-4o-mini`, `gpt-4o`, `gpt-4-turbo`
 3. Note: `gpt-4-turbo-preview` is deprecated
 4. Verify you have access to the model in your OpenAI account
 
@@ -401,6 +431,17 @@ Before using the app, verify:
 2. Anki should render these automatically
 3. If not working, check Anki's MathJax settings
 4. Ensure you're using a recent version of Anki Desktop
+
+#### Issue: `KeyError: 'sdpa'` when starting Marker API server
+
+**Cause**: Incompatibility between transformers and surya-ocr versions.
+
+**Solution**:
+```bash
+conda activate pdf2anki  # or activate your venv
+pip install transformers==4.41.0
+```
+Then restart the server.
 
 ### Getting Help
 
