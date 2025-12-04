@@ -377,7 +377,7 @@ def main():
         st.subheader("Marker API")
         marker_api_url = st.text_input(
             "Marker API URL",
-            value=os.getenv("MARKER_API_BASE", "http://localhost:8000"),
+            value=os.getenv("MARKER_API_BASE", "http://localhost:8080"),
             help="URL of the Marker API server"
         )
         
@@ -776,7 +776,7 @@ def main():
            - For Cloze: choose note type "Cloze", map fields → Field 1: Text, Field 2: Extra
            - Click Import
         
-        **Note**: Make sure the Marker API server is running at the specified URL (default: http://localhost:8000)
+        **Note**: Make sure the Marker API server is running at the specified URL (default: http://localhost:8080)
         """)
 
 

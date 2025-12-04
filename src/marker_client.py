@@ -58,7 +58,7 @@ def convert_pdf_to_markdown(
     api_base_url: str,
     output_root: Path,
     timeout_seconds: int = 300,
-    api_convert_path: str = "/marker/upload",
+    api_convert_path: str = "/convert",
     max_retries: int = 3,
 ) -> ConversionResultPaths:
     """
@@ -93,7 +93,7 @@ def convert_pdf_to_markdown(
     while retry_count <= max_retries:
         try:
             with pdf_path.open('rb') as f:
-                files = {"file": (pdf_path.name, f, "application/pdf")}
+                files = {"pdf_file": (pdf_path.name, f, "application/pdf")}
                 headers = {"Accept": "application/json"}
                 
                 logger.info(f"Sending request to {url} (attempt {retry_count + 1}/{max_retries + 1})")
@@ -191,7 +191,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Call Marker API to convert PDF to Markdown")
     parser.add_argument("pdf", type=str, help="Path to PDF file")
-    parser.add_argument("--api", type=str, default=os.getenv("MARKER_API_BASE", "http://localhost:8000"), help="Marker API base URL")
+    parser.add_argument("--api", type=str, default=os.getenv("MARKER_API_BASE", "http://localhost:8080"), help="Marker API base URL")
     parser.add_argument("--out", type=str, default=str(Path("outputs")), help="Output root directory")
     parser.add_argument("--timeout", type=int, default=120, help="HTTP timeout seconds")
     args = parser.parse_args()
