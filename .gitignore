@@ -32,6 +32,9 @@ cache/
 tmp/
 temp/
 
+# Local services/tools
+marker-api/
+
 # Large/binary assets (prevent in Git history)
 *.pdf
 *.zip
