@@ -2,6 +2,35 @@
 
 Convert PDF documents (lecture slides, academic papers) to Anki flashcards using AI.
 
+## Quick Start (TL;DR)
+
+```bash
+# 1. Clone and setup
+git clone --recurse-submodules https://github.com/your-username/PDF2Anki.git
+cd PDF2Anki
+conda create -n pdf2anki python=3.11 -y && conda activate pdf2anki
+pip install -r requirements.txt
+
+# 2. Setup marker-api
+cd marker-api && pip install -e . && pip install transformers==4.41.0 && cd ..
+
+# 3. Create .env file with your OpenAI API key
+echo "OPENAI_API_KEY=sk-your-key-here" > .env
+echo "OPENAI_MODEL=gpt-4o-mini" >> .env
+echo "MARKER_API_BASE=http://localhost:8080" >> .env
+
+# 4. Start servers (in separate terminals)
+# Terminal 1: Marker API
+cd marker-api && conda activate pdf2anki && python server.py --port 8080
+
+# Terminal 2: Streamlit App
+cd PDF2Anki && conda activate pdf2anki && streamlit run src/streamlit_app.py
+
+# 5. Open http://localhost:8501 in your browser
+```
+
+For detailed instructions, see the Installation Guide below.
+
 ## Features
 
 - **PDF to Markdown conversion** using Marker API
@@ -70,26 +99,41 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Verify installation**: Run `pip list` to confirm packages are installed.
+**Verify installation**: 
+```bash
+pip list | grep -E "streamlit|openai"
+# Should show: streamlit and openai packages
+```
 
 ### Step 3: Configure Environment Variables
 
 Create a `.env` file in the project root directory:
 
 ```bash
-# Create .env file
+# Create .env file (make sure you're in PDF2Anki directory)
+cd PDF2Anki
+
+# Option 1: Create with echo commands
+echo "OPENAI_API_KEY=sk-your-api-key-here" > .env
+echo "OPENAI_MODEL=gpt-4o-mini" >> .env
+echo "MARKER_API_BASE=http://localhost:8080" >> .env
+
+# Option 2: Or create manually
 touch .env  # On Windows: type nul > .env
+# Then edit with your text editor
 ```
 
-Edit the `.env` file with your preferred text editor and add the following:
-
 #### Option A: Using OpenAI (Recommended for beginners)
+
+Edit `.env` file to contain:
 
 ```bash
 OPENAI_API_KEY=sk-your-api-key-here
 OPENAI_MODEL=gpt-4o-mini
 MARKER_API_BASE=http://localhost:8080
 ```
+
+**Important**: Replace `sk-your-api-key-here` with your actual OpenAI API key!
 
 **Getting your OpenAI API key**:
 1. Go to [platform.openai.com](https://platform.openai.com/)
@@ -146,51 +190,40 @@ git commit -m "chore: bump marker-api submodule"
 
 #### 4.2 Install Marker API Dependencies
 
-**Option A: Using Conda (Recommended)**
-
-If you're using Conda (recommended for better dependency management):
+Use the **same environment** you created in Step 2:
 
 ```bash
-# Create conda environment (if not already created in Step 2)
-conda create -n pdf2anki python=3.11 -y
+# Make sure you're in the project root
+cd PDF2Anki
+
+# Activate the environment you created in Step 2
+# For Conda:
 conda activate pdf2anki
+# For venv:
+# source venv/bin/activate
 
 # Navigate to marker-api directory
 cd marker-api
 
-# Install Marker API and all dependencies
+# Install Marker API and all dependencies (this may take 5-10 minutes)
 pip install -e .
 
 # Fix transformers version compatibility (Important!)
 pip install transformers==4.41.0
+
+# Go back to project root
+cd ..
 ```
 
-**Option B: Using venv**
-
+**Verify installation**:
 ```bash
-# Create virtual environment for Marker API
-python3 -m venv venv
-
-# Activate virtual environment
-# On Linux/Mac:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
-
-# Upgrade pip
-python -m pip install -U pip
-
-# Install Marker API
-pip install -e .
-
-# Fix transformers version compatibility (Important!)
-pip install transformers==4.41.0
+python -c "import marker; print('Marker installed successfully')"
 ```
 
 **Note**: 
-- Marker API requires Python 3.10 or higher
-- Installation may take several minutes as it downloads large packages (PyTorch, etc.)
-- The transformers version fix is required to avoid `KeyError: 'sdpa'` error
+- Installation downloads large packages (PyTorch ~2GB, etc.) - this may take 5-10 minutes
+- The `transformers==4.41.0` fix is **required** to avoid `KeyError: 'sdpa'` error
+- If you see import errors, ensure you're in the correct conda/venv environment
 
 #### 4.3 Start Marker API Server
 
@@ -233,14 +266,23 @@ The optimized script will:
 
 **What to expect**:
 - First startup will download models (this can take 5-10 minutes)
-- You'll see "Application startup complete" when ready
+- You'll see output like:
+  ```
+  Loaded detection model vikp/surya_det3 on device cpu...
+  Loaded detection model vikp/surya_layout3 on device cpu...
+  Loaded reading order model vikp/surya_order on device cpu...
+  Loaded recognition model vikp/surya_rec2 on device cpu...
+  INFO:     Uvicorn running on http://0.0.0.0:8080
+  ```
 - The server will keep running until you stop it (Ctrl+C)
 
-**Verify the server is running**:
-1. Open your browser and go to: `http://localhost:8080/health`
-2. You should see `{"message":"Welcome to Marker-api","type":"simple"}` or similar
-3. API documentation: `http://localhost:8080/docs`
-4. Optional Gradio UI: `http://localhost:8080/` (root path)
+**Verify the server is running** (in a new terminal):
+```bash
+curl http://localhost:8080/health
+# Expected output: {"message":"Welcome to Marker-api","type":"simple"}
+```
+
+Or open in browser: `http://localhost:8080/health`
 
 **Troubleshooting**:
 - Update `MARKER_API_BASE` in your `.env` file to match the port you're using
@@ -272,9 +314,19 @@ streamlit run src/streamlit_app.py
 ./run_streamlit.sh  # On Linux/Mac
 ```
 
+**What to expect**:
+```
+You can now view your Streamlit app in your browser.
+Local URL: http://localhost:8501
+```
+
 The Streamlit app will automatically open in your browser at `http://localhost:8501`
 
 If it doesn't open automatically, manually navigate to: `http://localhost:8501`
+
+**Verify both servers are running**:
+- Marker API: `http://localhost:8080/health` should return JSON
+- Streamlit: `http://localhost:8501` should show the web interface
 
 ### Step 6: Configure Settings in Web Interface
 
@@ -293,6 +345,19 @@ When the Streamlit app opens:
 - The port number in Streamlit must match this port
 
 ## Usage Guide
+
+### Installation Verification Checklist
+
+After completing all installation steps, verify everything is working:
+
+| Check | Command/Action | Expected Result |
+|-------|---------------|-----------------|
+| Python version | `python --version` | 3.10 or higher |
+| Conda env active | `conda info --envs` | `pdf2anki` with `*` |
+| Marker installed | `python -c "import marker"` | No error |
+| .env file exists | `cat .env` | Shows API key config |
+| Marker API running | `curl localhost:8080/health` | JSON response |
+| Streamlit running | Open `localhost:8501` | Web interface |
 
 ### First Time Setup Checklist
 
