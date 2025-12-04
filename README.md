@@ -114,13 +114,13 @@ cd marker-api
 
 ```bash
 # Create virtual environment for Marker API
-python3 -m venv .venv
+python3 -m venv venv
 
 # Activate virtual environment
 # On Linux/Mac:
-source .venv/bin/activate
+source venv/bin/activate
 # On Windows:
-# .venv\Scripts\activate
+# venv\Scripts\activate
 
 # Upgrade pip
 python -m pip install -U pip
@@ -145,7 +145,7 @@ pip install fastapi uvicorn python-multipart starlette
 cd marker-api
 
 # Activate virtual environment (if not already activated)
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Start the server
 python marker_server.py --host 0.0.0.0 --port 8888
