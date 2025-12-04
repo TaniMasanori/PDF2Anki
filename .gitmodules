@@ -1,0 +1,3 @@
+[submodule "marker-api"]
+	path = marker-api
+	url = https://github.com/adithya-s-k/marker-api.git
