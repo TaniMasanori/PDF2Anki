@@ -18,9 +18,10 @@ Convert PDF documents (lecture slides, academic papers) to Anki flashcards using
 
 Before you begin, make sure you have:
 
-1. **Python 3.8 or higher** installed
+1. **Python 3.10 or higher** installed (Python 3.11 recommended)
    - Check your Python version: `python3 --version` or `python --version`
    - Download from [python.org](https://www.python.org/downloads/) if needed
+   - **Recommended**: Use [Miniconda](https://docs.conda.io/en/latest/miniconda.html) for easier dependency management
 
 2. **OpenAI API key** (for AI card generation)
    - Sign up at [platform.openai.com](https://platform.openai.com/)
@@ -28,8 +29,8 @@ Before you begin, make sure you have:
    - You'll need a paid account or credits
 
 3. **Marker API server** (for PDF to Markdown conversion)
-   - This will be set up in Step 3
-   - Requires Python 3.10+ for the Marker API server
+   - This will be set up in Step 4
+   - Requires Python 3.10+ (included in marker-api submodule)
 
 ### Step 2: Clone and Setup the Repository
 
@@ -40,7 +41,22 @@ cd PDF2Anki
 
 # If you already cloned without submodules, run:
 git submodule update --init --recursive
+```
 
+#### Option A: Using Conda (Recommended)
+
+```bash
+# Create and activate conda environment
+conda create -n pdf2anki python=3.11 -y
+conda activate pdf2anki
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+#### Option B: Using venv
+
+```bash
 # Create virtual environment
 python3 -m venv venv
 
