@@ -34,9 +34,12 @@ Before you begin, make sure you have:
 ### Step 2: Clone and Setup the Repository
 
 ```bash
-# Clone the repository
-git clone <repository-url>
+# Clone the repository (include submodules)
+git clone --recurse-submodules <repository-url>
 cd PDF2Anki
+
+# If you already cloned without submodules, run:
+git submodule update --init --recursive
 
 # Create virtual environment
 python3 -m venv venv
@@ -99,15 +102,28 @@ MARKER_API_BASE=http://localhost:8000
 
 The Marker API server converts PDFs to Markdown. You need to set it up separately.
 
-#### 4.1 Clone Marker API Repository
+#### 4.1 Initialize Marker API submodule
 
 ```bash
-# Navigate to project root (if not already there)
+# From the project root (if not already there)
 cd PDF2Anki
 
-# Clone Marker API repository
-git clone https://github.com/VikParuchuri/marker.git marker-api
+# Ensure the submodule is initialized and up-to-date
+git submodule update --init --recursive
+
+# Enter the submodule directory
 cd marker-api
+```
+
+Note: To update the submodule to a newer version later:
+
+```bash
+cd marker-api
+git fetch origin
+git checkout <tag-or-commit>
+cd ..
+git add marker-api
+git commit -m "chore: bump marker-api submodule"
 ```
 
 #### 4.2 Install Marker API Dependencies
@@ -403,7 +419,7 @@ PDF2Anki/
 │   ├── streamlit_app.py    # Web interface
 │   ├── marker_client.py    # PDF to Markdown conversion
 │   └── pdf2anki_types.py   # Data structures
-├── marker-api/             # Marker PDF conversion service
+├── marker-api/             # Marker API (git submodule)
 ├── docs/                   # Documentation
 ├── outputs/                # Conversion outputs
 ├── requirements.txt        # Python dependencies
