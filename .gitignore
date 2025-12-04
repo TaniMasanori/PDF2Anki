@@ -51,3 +51,5 @@ temp/
 *.mp3
 *.parquet
 
+# Reports
+reports/
