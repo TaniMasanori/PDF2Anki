@@ -14,12 +14,6 @@ We have provided automated scripts to handle all setup, dependency installation,
 
 ### How to Run
 
-**Windows**:
-Double-click `setup_and_run.bat` or run it from Command Prompt:
-```cmd
-setup_and_run.bat
-```
-
 **Mac / Linux**:
 Run the shell script:
 ```bash
@@ -544,7 +538,6 @@ PDF2Anki/
 ├── docs/                   # Documentation
 ├── outputs/                # Conversion outputs
 ├── requirements.txt        # Python dependencies
-├── setup_and_run.bat       # Windows setup script
 ├── setup_and_run.sh        # Mac/Linux setup script
 └── run_streamlit.sh        # Startup script
 ```
