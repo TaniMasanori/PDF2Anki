@@ -10,7 +10,6 @@ We have provided automated scripts to handle all setup, dependency installation,
 
 1.  **Python 3.10+** installed.
 2.  **OpenAI API Key**: You will be prompted to enter this in the generated `.env` file.
-    *   *Note*: If obtaining an API key is difficult, please email `samuel_reinehr_sw@mines.edu` to schedule a demo/discussion as per the submission guidelines.
 
 ### How to Run
 
