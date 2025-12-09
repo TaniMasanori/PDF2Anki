@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Ensure running in bash
+if [ -z "$BASH_VERSION" ]; then
+    exec bash "$0" "$@"
+fi
+
 # Script to run the PDF2Anki Streamlit app
 
 echo "Starting PDF2Anki Streamlit app..."
