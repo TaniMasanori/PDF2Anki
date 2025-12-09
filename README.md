@@ -2,46 +2,44 @@
 
 Convert PDF documents (lecture slides, academic papers) to Anki flashcards using AI.
 
-## Quick Start (TL;DR)
+## Quick Start for Reviewers (One-Click Setup)
 
-```bash
-# 1. Clone and setup
-git clone --recurse-submodules https://github.com/your-username/PDF2Anki.git
-cd PDF2Anki
-conda create -n pdf2anki python=3.11 -y && conda activate pdf2anki
-pip install -r requirements.txt
+We have provided automated scripts to handle all setup, dependency installation, and server launching.
 
-# 2. Setup marker-api
-cd marker-api && pip install -e . && pip install transformers==4.41.0 && cd ..
+### Prerequisites
 
-# 3. Create .env file with your OpenAI API key
-echo "OPENAI_API_KEY=sk-your-key-here" > .env
-echo "OPENAI_MODEL=gpt-4o-mini" >> .env
-echo "MARKER_API_BASE=http://localhost:8080" >> .env
+1.  **Python 3.10+** installed.
+2.  **OpenAI API Key**: You will be prompted to enter this in the generated `.env` file.
+    *   *Note*: If obtaining an API key is difficult, please email `samuel_reinehr_sw@mines.edu` to schedule a demo/discussion as per the submission guidelines.
 
-# 4. Start servers (in separate terminals)
-# Terminal 1: Marker API
-cd marker-api && conda activate pdf2anki && python server.py --port 8080
+### How to Run
 
-# Terminal 2: Streamlit App
-cd PDF2Anki && conda activate pdf2anki && streamlit run src/streamlit_app.py
-
-# 5. Open http://localhost:8501 in your browser
+**Windows**:
+Double-click `setup_and_run.bat` or run it from Command Prompt:
+```cmd
+setup_and_run.bat
 ```
 
-For detailed instructions, see the Installation Guide below.
+**Mac / Linux**:
+Run the shell script:
+```bash
+chmod +x setup_and_run.sh
+./setup_and_run.sh
+```
 
-## Features
+**What the script does**:
+1.  Updates git submodules (`marker-api`).
+2.  Creates a virtual environment (`venv`).
+3.  Installs all dependencies (and fixes version conflicts).
+4.  Creates a `.env` file (you will need to add your API key).
+5.  Launches the **Marker API Server** (in a separate terminal).
+6.  Launches the **Streamlit Web App** (opens in your default browser).
 
-- **PDF to Markdown conversion** using Marker API
-- **AI-powered flashcard generation** using OpenAI GPT models or compatible LLMs
-- **Anki-ready TSV export** for easy import
-- **Web interface** built with Streamlit
-- **MathJax/LaTeX support** for mathematical expressions
-- **Automatic tagging** for card organization
-- **Intelligent chunking** for better card generation from long documents
+---
 
-## Installation Guide
+## Manual Installation Guide (Legacy)
+
+If the automated scripts above do not work for your environment, please follow these manual steps.
 
 ### Step 1: Prerequisites
 
@@ -518,6 +516,7 @@ Before using the app, verify:
 **Cause**: Incompatibility between transformers and surya-ocr versions.
 
 **Solution**:
+1. This is automatically handled by the setup scripts. If running manually:
 ```bash
 conda activate pdf2anki  # or activate your venv
 pip install transformers==4.41.0
@@ -545,6 +544,8 @@ PDF2Anki/
 ├── docs/                   # Documentation
 ├── outputs/                # Conversion outputs
 ├── requirements.txt        # Python dependencies
+├── setup_and_run.bat       # Windows setup script
+├── setup_and_run.sh        # Mac/Linux setup script
 └── run_streamlit.sh        # Startup script
 ```
 
